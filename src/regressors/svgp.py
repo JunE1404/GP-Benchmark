@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 class SparseVariationalGP(ApproximateGP):
     def __init__(
         self,
-        inducing_points,
+        inducing_points,  # instead pass string for strategy (rand, k-means) + number of points n
         train_data: tuple[Tensor, Tensor],
         test_data: tuple[Tensor, Tensor],
         likelihood,
@@ -35,7 +35,9 @@ class SparseVariationalGP(ApproximateGP):
         )
         super(SparseVariationalGP, self).__init__(variational_strategy)
         self.mean_module = gpytorch.means.ConstantMean()
-        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+        self.covar_module = kernel or gpytorch.kernels.ScaleKernel(
+            gpytorch.kernels.RBFKernel()
+        )
         self.train_data = train_data
         self.test_data = test_data
         self.likelihood = likelihood
@@ -80,7 +82,9 @@ class SparseVariationalGP(ApproximateGP):
         self.likelihood.train()
 
         train_dataset = TensorDataset(self.train_data[0], self.train_data[1])
-        train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+        train_loader = DataLoader(
+            train_dataset, batch_size=128, shuffle=True
+        )  # batch size chosen with flag
 
         mll = gpytorch.mlls.VariationalELBO(
             self.likelihood, self, num_data=self.train_data[1].size(0)

@@ -174,9 +174,11 @@ class RegressionDataset:
         n_one_hot = (
             self.features.shape[1] - (np.array(self.feature_types) == "cat").sum()
         )
-        features_continuous = self.features[:, :n_one_hot]
-        train_X_means[:n_one_hot] = mean(features_continuous, dim=0)
-        train_X_stds[:n_one_hot] = std(features_continuous, dim=0)
+        features_continuous = self.features[:, :-n_one_hot]
+        train_X_means[:-n_one_hot] = mean(features_continuous, dim=0)
+        train_X_stds[:-n_one_hot] = std(features_continuous, dim=0)
+
+        # Fix stand of one hot features & re-check cont & cat order
 
         x_means = mean(i_features, dim=0)
         x_stds = std(i_features, dim=0)

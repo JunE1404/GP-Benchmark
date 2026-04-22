@@ -1,0 +1,26 @@
+Plot different inducing point numbers against each other
+- Points vs accuracy (closer to exact)
+- Points vs training time
+
+
+Explicit parameter setting (no default kernel etc)
+
+Add git hash to results for version check
+Add git status check (check for changes before running -> refuse run if yes)
+device data to results (cpu/gpu)
+
+specify device in main.py
+
+set up logging for main.py etc
+
+Main.py startup using arguments
+
+Ecaxt gp (not actually)
+
+Computationally aware GP (not in official GPytorch)
+
+New parameter in main --approximation_size (inducing points for svgp, actions for cagp)
+
+Get dataset data locally
+
+Invertible transform class for data (forward -> std, backwards -> unstandardize /reverse), make transformation function changable

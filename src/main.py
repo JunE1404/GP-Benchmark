@@ -51,7 +51,7 @@ def evaluate_regression(predictions, targets, y_mean=None, y_std=None):
     targets = targets.cpu()
     stds = stds.cpu()
 
-    # Optional: revert standardization to original space
+    # Force, assume that data is standardized
     if y_mean is not None and y_std is not None:
         means = means * y_std + y_mean
         stds = stds * y_std
