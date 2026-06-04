@@ -7,7 +7,7 @@ import torch
 from Datasets.RegressionDataset import RegressionDataset
 from Datasets.UCIParkinsons import UCIParkinsonsTelemonitoring
 from Datasets.UCIWine import UCIWineQuality
-from Regressors.model import ExactGPModel
+from Regressors.ExactGP import ExactGPModel
 
 
 def test_uci_data(ds: RegressionDataset):
