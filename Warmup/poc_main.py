@@ -42,4 +42,5 @@ def test_uci_data(id):
     model.run_eval(show=False)
 
 
-test_uci_data(186)
+# test_uci_data(186)
+test_custom_data()
