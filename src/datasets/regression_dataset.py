@@ -26,7 +26,7 @@ class Dataset:
         self.feature_types = feature_types
 
     def standardize_data(self, f: bool, t: bool):
-
+        # statelessness preferred, return seperate data after standardization
         self.apply_onehot_encoding()
 
         (f_means, f_stds), (t_mean, t_std) = self.get_dataset_statistics()
@@ -84,6 +84,8 @@ class Dataset:
         # features_continuous = self.features[:, n_one_hot:]
         # train_X_means[n_one_hot:] = mean(features_continuous, dim=0)
         # train_X_stds[n_one_hot:] = std(features_continuous, dim=0)
+        #
+        # #^ Exclude one-hot encoded columns from statistics
 
         x_means = mean(self.features, dim=0)
         x_stds = std(self.features, dim=0)
@@ -108,7 +110,7 @@ class RegressionDataset(Dataset):
         super().__init__(f, t, feature_types)
 
     def __str__(self) -> str:
-        return f"Dataset: {self.__class__.__name__} | Input dim: {self.input_dim} | Output dim: {self.output_dim}"
+        return f"{self.__class__.__name__}"
 
     @staticmethod
     def _convert_to_tensor(a: NDArray | Tensor) -> Tensor:
@@ -172,10 +174,14 @@ class RegressionDataset(Dataset):
         )
 
         train.standardize_data(
-            standardize_data_split_features[0], standardize_data_split_targets[0]
+            standardize_data_split_features[0],
+            standardize_data_split_targets[0],
+            #
         )
         val.standardize_data(
-            standardize_data_split_features[1], standardize_data_split_targets[1]
+            standardize_data_split_features[1],
+            standardize_data_split_targets[1],
+            # user train statistics for standardizing all splits
         )
         test.standardize_data(
             standardize_data_split_features[2], standardize_data_split_targets[2]

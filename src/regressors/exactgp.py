@@ -127,6 +127,14 @@ class ExactGPModel(gpytorch.models.ExactGP):
                 train_data_f = self.train_data.features.cpu().numpy()
                 train_data_t = self.train_data.targets.cpu().numpy()
 
+                n_train = len(train_data_f)
+                rng = np.random.default_rng(seed=42)
+                subset_idx = rng.choice(
+                    n_train, size=max(1, n_train // 4), replace=False
+                )
+                train_data_f = train_data_f[subset_idx]
+                train_data_t = train_data_t[subset_idx]
+
                 sort_idx = np.argsort(test_data_f, axis=0).flatten()
                 test_features_sorted = test_data_f[sort_idx].flatten()
                 y_mean_sorted = y_preds.mean.cpu().numpy()[sort_idx]
@@ -143,4 +151,5 @@ class ExactGPModel(gpytorch.models.ExactGP):
                 ax.set_ylim([-3, 3])
                 ax.legend(["Observed Data", "Mean", "Confidence"])
 
-                plt.show()
+                # plt.show()
+                plt.savefig("test.png", dpi=600)

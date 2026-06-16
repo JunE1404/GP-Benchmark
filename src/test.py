@@ -30,7 +30,7 @@ def test_uci_data(ds: RegressionDataset):
     model = ExactGPModel(train, test, likelihood)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     # optimizer = torch.optim.LBFGS(
-    #    model.parameters(), lr=1.0, max_iter=50, line_search_fn="strong_wolfe"
+    #    model.parameters(), lr=1.0, max_iter=50
     # )
     model.run_training(optimizer, iterations=100)
     model.run_eval(show=False)
@@ -61,12 +61,12 @@ def test_custom_data():
     model = ExactGPModel(train, test, likelihood)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     # optimizer = torch.optim.LBFGS(
-    #    model.parameters(), lr=1.0, max_iter=50, line_search_fn="strong_wolfe"
+    #    model.parameters(), lr=1.0, max_iter=50
     # )
     model.run_training(optimizer, iterations=50)
     model.run_eval(show=True)
 
 
-test_uci_data(UCIWineQuality())
-test_uci_data(UCIParkinsonsTelemonitoring())
+# test_uci_data(UCIWineQuality())
+# test_uci_data(UCIParkinsonsTelemonitoring())
 test_custom_data()
