@@ -1,0 +1,16 @@
+{
+  "dataset": "SimpleSyntheticDataset",
+  "modelType": "ExactGP",
+  "kernel": "RBF",
+  "likelihood": "Gaussian",
+  "optimizer": "Adam, LR: 0.1",
+  "shuffledData": true,
+  "seed": 42,
+  "evalData": {
+    "MAE": 0.16214849054813385,
+    "NLL": -0.188699871301651,
+    "PICP": 0.9433333277702332,
+    "RMSE": 0.20029836893081665
+  },
+  "trainingTime": 0.7526206970214844
+}

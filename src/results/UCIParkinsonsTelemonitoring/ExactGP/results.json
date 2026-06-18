@@ -1,0 +1,16 @@
+{
+  "dataset": "UCIParkinsonsTelemonitoring",
+  "modelType": "ExactGP",
+  "kernel": "RBF",
+  "likelihood": "Gaussian",
+  "optimizer": "Adam, LR: 0.1",
+  "shuffledData": true,
+  "seed": 42,
+  "evalData": {
+    "MAE": 5.636482238769531,
+    "NLL": 3.393115758895874,
+    "PICP": 0.9444129467010498,
+    "RMSE": 7.206070899963379
+  },
+  "trainingTime": 6.745132684707642
+}

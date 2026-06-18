@@ -1,0 +1,16 @@
+{
+  "dataset": "UCIWineQuality",
+  "modelType": "ExactGP",
+  "kernel": "RBF",
+  "likelihood": "Gaussian",
+  "optimizer": "Adam, LR: 0.1",
+  "shuffledData": true,
+  "seed": 42,
+  "evalData": {
+    "MAE": 0.44929009675979614,
+    "NLL": 0.6771215796470642,
+    "PICP": 0.947692334651947,
+    "RMSE": 0.6702404022216797
+  },
+  "trainingTime": 7.240723133087158
+}

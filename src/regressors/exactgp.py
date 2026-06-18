@@ -2,21 +2,30 @@ import gpytorch
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
-from Datasets.RegressionDataset import Dataset
+from torch import Tensor
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
-    train_data: Dataset
-    test_data: Dataset
+    train_data: tuple[Tensor, Tensor]
+    test_data: tuple[Tensor, Tensor]
     trained: bool
 
     def __init__(
-        self, train_data: Dataset, test_data: Dataset, likelihood, kernel=None
+        self,
+        train_data: tuple[Tensor, Tensor],
+        test_data: tuple[Tensor, Tensor],
+        likelihood,
+        kernel=None,
     ):
-        super(ExactGPModel, self).__init__(
-            train_data.features, train_data.targets, likelihood
-        )
+        """Initialize the Exact GP model.
+
+        Args:
+            train_data: Tuple of (train_features, train_targets).
+            test_data: Tuple of (test_features, test_targets).
+            likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
+            kernel: Optional custom kernel; defaults to ScaleKernel(RBFKernel()).
+        """
+        super(ExactGPModel, self).__init__(train_data[0], train_data[1], likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel or gpytorch.kernels.ScaleKernel(
             gpytorch.kernels.RBFKernel()
@@ -28,16 +37,42 @@ class ExactGPModel(gpytorch.models.ExactGP):
         if torch.cuda.is_available():
             self.to("cuda")
             self.likelihood = likelihood.cuda()
-            self.train_data = train_data.cuda()
-            self.test_data = test_data.cuda()
+            self.train_data = (train_data[0].cuda(), train_data[1].cuda())
+            self.test_data = (test_data[0].cuda(), test_data[1].cuda())
+
+    def __str__(self) -> str:
+        return "ExactGP"
 
     def forward(self, x):
+        """Compute the prior/posterior GP distribution at input points.
+
+        Args:
+            x: Input tensor of shape (n_samples, n_features).
+
+        Returns:
+            MultivariateNormal distribution with the GP mean and covariance.
+        """
         mean_x = self.mean_module(x)
         assert isinstance(mean_x, torch.Tensor), "mean must be a tensor"
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
     def run_training(self, optimizer, iterations):
+        """Train the Exact GP model.
+
+        Optimizes kernel hyperparameters and likelihood noise by minimizing
+        the negative exact marginal log-likelihood.
+
+        Args:
+            optimizer: A PyTorch optimizer (e.g. Adam or LBFGS).
+            iterations: Number of optimization iterations.
+        """
+
+        def _compute_loss(mll, x_train, y_train):
+            """Compute the negative marginal log-likelihood loss."""
+            output = self(x_train)
+            return -mll(output, y_train).mean()
+
         self.train()
         self.likelihood.train()
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self)
@@ -46,110 +81,52 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
         for i in range(iterations):
             if is_lbfgs:
-                loss = optimizer.step(lambda: self._compute_loss(mll))
+
+                def closure():
+                    """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
+                    optimizer.zero_grad()
+                    loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                    loss.backward()
+                    return loss
+
+                loss = optimizer.step(closure)
             else:
                 optimizer.zero_grad()
-                loss = self._compute_loss(mll)
+                loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
                 loss.backward()
                 optimizer.step()
 
-            print(
-                "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-                % (
-                    i + 1,
-                    iterations,
-                    loss.item(),
-                    self.covar_module.base_kernel.lengthscale.item(),
-                    self.likelihood.noise.item(),
-                )
-            )
+            # print(
+            #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
+            #    % (
+            #        i + 1,
+            #        iterations,
+            #        loss.item(),
+            #        self.covar_module.base_kernel.lengthscale.item(),
+            #        self.likelihood.noise.item(),
+            #    )
+            # )
             torch.cuda.empty_cache()
 
         self.trained = True
 
-    def _compute_loss(self, mll):
-        output = self(self.train_data.features)
-        return -mll(output, self.train_data.targets).mean()
+    def predict(self, x):
+        """Get the posterior distribution over test points after training.
 
-    @property
-    def posterior(self):
+        Returns:
+            MultivariateNormal distribution over test targets.
+
+        Raises:
+            ValueError: If the model has not been trained yet.
+        """
         if not self.trained:
             raise ValueError(
                 "The model needs to be trained first. run .run_training(optimizer, iterations)"
             )
+        if torch.cuda.is_available():
+            x = x.cuda()
         self.eval()
         self.likelihood.eval()
         with torch.no_grad():
-            posterior = self(self.test_data.features)
+            posterior = self.likelihood(self(x))
         return posterior
-
-    def run_eval(self, show=False):
-        self.eval()
-        self.likelihood.eval()
-
-        f_preds = self(self.test_data.features)
-        y_preds = self.likelihood(f_preds)
-
-        targets = self.test_data.targets.to(y_preds.mean.device)
-
-        with torch.no_grad():
-            mu = y_preds.mean
-            sigma = y_preds.stddev
-            lower_bound = mu - 1.96 * sigma
-            upper_bound = mu + 1.96 * sigma
-            print(
-                "MAE: {}".format(torch.mean(torch.abs(y_preds.mean - targets))),
-                "Targets mean: {}".format(torch.mean(targets)),
-            )
-            print(
-                "NLL: {}".format(
-                    -y_preds.to_data_independent_dist().log_prob(targets).mean().item()
-                )
-            )
-
-            is_covered = (targets >= lower_bound) & (targets <= upper_bound)
-            picp = is_covered.float().mean()
-
-            print(f"PICP: {picp:.4f}")
-
-            mse = torch.mean((targets - mu) ** 2)
-            rmse = torch.sqrt(mse)
-
-            print(f"RMSE: {rmse.item():.4f}")
-
-        if show:
-            with torch.no_grad():
-                f, ax = plt.subplots(1, 1, figsize=(4, 3))
-
-                lower, upper = y_preds.confidence_region()
-
-                test_data_f = self.test_data.features.cpu().numpy()
-                train_data_f = self.train_data.features.cpu().numpy()
-                train_data_t = self.train_data.targets.cpu().numpy()
-
-                n_train = len(train_data_f)
-                rng = np.random.default_rng(seed=42)
-                subset_idx = rng.choice(
-                    n_train, size=max(1, n_train // 4), replace=False
-                )
-                train_data_f = train_data_f[subset_idx]
-                train_data_t = train_data_t[subset_idx]
-
-                sort_idx = np.argsort(test_data_f, axis=0).flatten()
-                test_features_sorted = test_data_f[sort_idx].flatten()
-                y_mean_sorted = y_preds.mean.cpu().numpy()[sort_idx]
-                lower_sorted = lower.cpu().numpy()[sort_idx]
-                upper_sorted = upper.cpu().numpy()[sort_idx]
-
-                ax.plot(train_data_f, train_data_t, "k*")
-
-                ax.plot(test_features_sorted, y_mean_sorted, "b")
-
-                ax.fill_between(
-                    test_features_sorted, lower_sorted, upper_sorted, alpha=0.5
-                )
-                ax.set_ylim([-3, 3])
-                ax.legend(["Observed Data", "Mean", "Confidence"])
-
-                # plt.show()
-                plt.savefig("test.png", dpi=600)
