@@ -3,14 +3,17 @@
   "modelType": "ExactGP",
   "kernel": "RBF",
   "likelihood": "Gaussian",
+  "mean": "Constant Mean",
   "optimizer": "Adam, LR: 0.1",
   "shuffledData": true,
   "seed": 42,
   "evalData": {
-    "MAE": 5.6381635665893555,
-    "NLL": 3.393397331237793,
-    "PICP": 0.946681797504425,
-    "RMSE": 7.211586952209473
+    "MAE": 5.637303829193115,
+    "NLL": 3.393021583557129,
+    "PICP": 0.9438456892967224,
+    "RMSE": 7.207417964935303
   },
-  "trainingTime": 51.41820526123047
+  "trainingTime": 6.443247556686401,
+  "device": "cuda",
+  "git_commit_hash": "109ef52849e5a9a12318ac5728d254863a76c0d4"
 }

@@ -30,6 +30,14 @@ class CAGPModel(ComputationAwareGP):
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
             kernel: Optional custom kernel; defaults to ScaleKernel(RBFKernel()).
         """
+        super(CAGPModel, self).__init__(
+            train_inputs=train_data[0],
+            train_targets=train_data[1],
+            mean_module=mean_module,
+            covar_module=kernel,
+            likelihood=likelihood,
+            projection_dim=projection_dim,
+        )
         if mean_module is None:
             raise ValueError("No mean module set.")
         else:
@@ -42,15 +50,6 @@ class CAGPModel(ComputationAwareGP):
             raise ValueError("No likelyhood set.")
         else:
             self.likelihood = likelihood
-
-        super(CAGPModel, self).__init__(
-            train_inputs=train_data[0],
-            train_targets=train_data[1],
-            mean_module=mean_module,
-            covar_module=kernel,
-            likelihood=likelihood,
-            projection_dim=projection_dim,
-        )
 
         self.train_data = train_data
         self.test_data = test_data

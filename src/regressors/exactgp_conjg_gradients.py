@@ -29,6 +29,9 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
             kernel: Optional custom kernel; defaults to ScaleKernel(RBFKernel()).
         """
+        super(ExactGPConjGradients, self).__init__(
+            train_data[0], train_data[1], likelihood
+        )
         if mean_module is None:
             raise ValueError("No mean module set.")
         else:
@@ -41,10 +44,6 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             raise ValueError("No likelyhood set.")
         else:
             self.likelihood = likelihood
-
-        super(ExactGPConjGradients, self).__init__(
-            train_data[0], train_data[1], likelihood
-        )
 
         self.train_data = train_data
         self.test_data = test_data

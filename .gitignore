@@ -221,27 +221,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-  11:54 AM
-Goals:
-
-    Implement sparse variational GP (SVGP) - https://docs.gpytorch.ai/en/stable/examples/04_Variational_and_Approximate_GPs/index.html
-    Implement "Exact" linear-algebra based approach - https://docs.gpytorch.ai/en/stable/examples/02_Scalable_Exact_GPs/index.html (not actually exact, relies on conjugate gradients etc.)
-    Create training script where user can specify:
-        Approximation method
-        Training dataset
-        Random seed
-        Then the script gets all datasets and performs standardisation etc. Then trains the model. Then performs evaluation (in non-standardised space)
-
-(edited)
-11:57
-Save results to results/{DATASET}/{APPROXIMATION}/results.{npz/json}
-11:57
-Can also be nice to save logs to the same directry
-  9:10 AM
-Hi Julien, I just wanted to check if you had seen my email from last night? Unfortunately I was informed about something late yesterday which meant that I'm unable to make it to the office today, so we'll have to have our meeting online
-  11:04 AM
-Hi, sorry, unfortunately I didn't see the email yesterday. That unfortunately also means I'm currently not able to join an online meeting. Would it be fine with you to move it to early next week? In the meantime I can give you access to the github repo so that you can take a look at the changes since the last meeting.
-
-
-Message Thomas Christie
-:bell:Slack needs your permission to enable notifications. 
+#results
+src/results/
