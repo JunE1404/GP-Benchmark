@@ -82,7 +82,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-f", "--config_file")
 parser.add_argument("-dv", "--device")
 parser.add_argument("-d", "--datasets")
-parser.add_argument("-s", "--split")
+parser.add_argument("-sp", "--split")
 parser.add_argument("-st", "--standardize")
 parser.add_argument("-g", "--gp")
 parser.add_argument("-k", "--kernel")
