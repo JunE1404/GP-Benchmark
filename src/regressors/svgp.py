@@ -13,8 +13,8 @@ class SparseVariationalGP(ApproximateGP):
         train_data: tuple[Tensor, Tensor],
         test_data: tuple[Tensor, Tensor],
         likelihood,
-        mean_module=None,
         kernel=None,
+        mean_module=None,
         device="",
     ):
         """Initialize the Sparse Variational GP model.

@@ -189,19 +189,27 @@ for set in sets:
 
     match gp_select:
         case "exact":
-            model = ExactGPModel(train, test, likelihood, kernel)
+            model = ExactGPModel(train, test, likelihood, kernel, mean, device)
         case "exactcg":
-            model = ExactGPConjGradients(train, test, likelihood, kernel)
+            model = ExactGPConjGradients(train, test, likelihood, kernel, mean, device)
         case "svgp":
             n = args.approximation_size
             inducing_points = train[0][:n, :]
-            model = SparseVariationalGP(inducing_points, train, test, likelihood)
+            model = SparseVariationalGP(
+                inducing_points, train, test, likelihood, kernel, mean, device
+            )
         case "cagp":
             model = CAGPModel(
-                train, test, 1, likelihood, kernel=kernel, mean_module=mean
+                train,
+                test,
+                1,
+                likelihood,
+                kernel=kernel,
+                mean_module=mean,
+                device=device,
             )
         case _:
-            model = ExactGPModel(train, test, likelihood, kernel)
+            model = ExactGPModel(train, test, likelihood, kernel, mean, device)
 
     match op_select:
         case 1:
