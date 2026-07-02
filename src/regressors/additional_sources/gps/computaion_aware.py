@@ -10,6 +10,8 @@ from gpytorch.models import ExactGP
 from linear_operator import operators
 from linear_operator import utils as linop_utils
 
+from ..block_diag_sparse_linop import BlockDiagonalSparseLinearOperator
+
 
 class ComputationAwareGP(ExactGP):
     """Computation-aware Gaussian process."""
@@ -79,7 +81,7 @@ class ComputationAwareGP(ExactGP):
         else:
             raise ValueError(f"Unknown initialization: '{initialization}'.")
 
-        self.actions_op = operators.BlockDiagonalSparseLinearOperator(  # TODO: Can we speed this up by allowing ranges as non-zero indices?
+        self.actions_op = BlockDiagonalSparseLinearOperator(  # TODO: Can we speed this up by allowing ranges as non-zero indices?
             non_zero_idcs=non_zero_idcs,
             blocks=self.non_zero_action_entries,
             size_input_dim=self.projection_dim * self.num_non_zero,
