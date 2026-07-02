@@ -55,7 +55,7 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             self.test_data = (test_data[0].cuda(), test_data[1].cuda())
 
     def __str__(self) -> str:
-        return "ExactGP"
+        return "ExactGP_CG"
 
     def forward(self, x):
         """Compute the prior/posterior GP distribution at input points.
