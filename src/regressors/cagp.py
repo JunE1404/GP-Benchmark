@@ -1,9 +1,13 @@
 import gpytorch
 import torch
+from gpytorch.likelihoods import Likelihood
 from torch import Tensor
 
+from .additional_sources.gps.computaion_aware import ComputationAwareGP
+from .additional_sources.mlls.comp_aware_elbo import ComputationAwareELBO
 
-class ExactGPModel(gpytorch.models.ExactGP):
+
+class CAGPModel(ComputationAwareGP):
     train_data: tuple[Tensor, Tensor]
     test_data: tuple[Tensor, Tensor]
     trained: bool
@@ -12,7 +16,8 @@ class ExactGPModel(gpytorch.models.ExactGP):
         self,
         train_data: tuple[Tensor, Tensor],
         test_data: tuple[Tensor, Tensor],
-        likelihood,
+        projection_dim: int,
+        likelihood: None | Likelihood,
         kernel=None,
         mean_module=None,
         device="",
@@ -38,7 +43,14 @@ class ExactGPModel(gpytorch.models.ExactGP):
         else:
             self.likelihood = likelihood
 
-        super(ExactGPModel, self).__init__(train_data[0], train_data[1], likelihood)
+        super(CAGPModel, self).__init__(
+            train_inputs=train_data[0],
+            train_targets=train_data[1],
+            mean_module=mean_module,
+            covar_module=kernel,
+            likelihood=likelihood,
+            projection_dim=projection_dim,
+        )
 
         self.train_data = train_data
         self.test_data = test_data
@@ -50,7 +62,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
             self.test_data = (test_data[0].cuda(), test_data[1].cuda())
 
     def __str__(self) -> str:
-        return "ExactGP"
+        return "CAGP"
 
     def forward(self, x):
         """Compute the prior/posterior GP distribution at input points.
@@ -84,7 +96,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
         self.train()
         self.likelihood.train()
-        mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self)
+        mll = ComputationAwareELBO(self.likelihood, self)
 
         is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
 

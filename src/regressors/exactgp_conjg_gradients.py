@@ -1,9 +1,13 @@
+import math
+
 import gpytorch
 import torch
+from linear_operator.utils import StochasticLQ
+from linear_operator.utils.linear_cg import linear_cg
 from torch import Tensor
 
 
-class ExactGPModel(gpytorch.models.ExactGP):
+class ExactGPConjGradients(gpytorch.models.ExactGP):
     train_data: tuple[Tensor, Tensor]
     test_data: tuple[Tensor, Tensor]
     trained: bool
@@ -38,7 +42,9 @@ class ExactGPModel(gpytorch.models.ExactGP):
         else:
             self.likelihood = likelihood
 
-        super(ExactGPModel, self).__init__(train_data[0], train_data[1], likelihood)
+        super(ExactGPConjGradients, self).__init__(
+            train_data[0], train_data[1], likelihood
+        )
 
         self.train_data = train_data
         self.test_data = test_data
@@ -77,14 +83,30 @@ class ExactGPModel(gpytorch.models.ExactGP):
             iterations: Number of optimization iterations.
         """
 
-        def _compute_loss(mll, x_train, y_train):
-            """Compute the negative marginal log-likelihood loss."""
-            output = self(x_train)
-            return -mll(output, y_train).mean()
+        def _compute_loss_cg(x_train, y_train):
+            N = x_train.shape[0]
+            noise = self.likelihood.noise
+
+            def matmul(v):
+                return self.covar_module(x_train, x_train) @ v + noise * v
+
+            y_centered = y_train - self.mean_module(x_train)
+            # CG solve
+            alpha = linear_cg(matmul, y_centered, max_iter=50)
+
+            # Log-det
+            slq = StochasticLQ(max_iter=20, num_random_probes=10)
+            logdet = slq.evaluate(
+                matmul, matrix_shape=(N, N), funcs=[lambda x: x.log()]
+            )
+
+            # Cache α for prediction
+            self._alpha = alpha
+
+            return 0.5 * (y_centered @ alpha + logdet + N * math.log(2 * math.pi))
 
         self.train()
         self.likelihood.train()
-        mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self)
 
         is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
 
@@ -94,14 +116,14 @@ class ExactGPModel(gpytorch.models.ExactGP):
                 def closure():
                     """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
                     optimizer.zero_grad()
-                    loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                    loss = _compute_loss_cg(self.train_data[0], self.train_data[1])
                     loss.backward()
                     return loss
 
                 loss = optimizer.step(closure)
             else:
                 optimizer.zero_grad()
-                loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                loss = _compute_loss_cg(self.train_data[0], self.train_data[1])
                 loss.backward()
                 optimizer.step()
 
@@ -137,5 +159,9 @@ class ExactGPModel(gpytorch.models.ExactGP):
         self.eval()
         self.likelihood.eval()
         with torch.no_grad():
-            posterior = self.likelihood(self(x))
-        return posterior
+            prior_mean = self.mean_module(x)
+            k_x_train = self.covar_module(x, self.train_data[0])
+            pred_mean = prior_mean + k_x_train @ self._alpha
+            pred_covar = self.covar_module(x)
+            # no predictive varaince
+        return gpytorch.distributions.MultivariateNormal(pred_mean, pred_covar)

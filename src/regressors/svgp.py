@@ -13,7 +13,9 @@ class SparseVariationalGP(ApproximateGP):
         train_data: tuple[Tensor, Tensor],
         test_data: tuple[Tensor, Tensor],
         likelihood,
+        mean_module=None,
         kernel=None,
+        device="",
     ):
         """Initialize the Sparse Variational GP model.
 
@@ -34,15 +36,23 @@ class SparseVariationalGP(ApproximateGP):
             learn_inducing_locations=True,
         )
         super(SparseVariationalGP, self).__init__(variational_strategy)
-        self.mean_module = gpytorch.means.ConstantMean()
-        self.covar_module = kernel or gpytorch.kernels.ScaleKernel(
-            gpytorch.kernels.RBFKernel()
-        )
+        if mean_module is None:
+            raise ValueError("No mean module set.")
+        else:
+            self.mean_module = mean_module
+        if kernel is None:
+            raise ValueError("No kernel (covar module) set.")
+        else:
+            self.covar_module = kernel
+        if likelihood is None:
+            raise ValueError("No likelyhood set.")
+        else:
+            self.likelihood = likelihood
+
         self.train_data = train_data
         self.test_data = test_data
-        self.likelihood = likelihood
         self.trained = False
-        if torch.cuda.is_available():
+        if device == "cuda" and torch.cuda.is_available():
             self.to("cuda")
             self.likelihood = likelihood.cuda()
             self.train_data = (train_data[0].cuda(), train_data[1].cuda())

@@ -1,18 +1,19 @@
+import argparse
 import importlib
 import inspect
 import json
-import math
-import os
 import pkgutil
 import time
 from pathlib import Path
 
 import gpytorch
-import numpy as np
 import torch
 
+import helpers
 from datasets.regression_dataset import RegressionDataset
+from regressors.cagp import CAGPModel
 from regressors.exactgp import ExactGPModel
+from regressors.exactgp_conjg_gradients import ExactGPConjGradients
 from regressors.svgp import SparseVariationalGP
 
 
@@ -69,174 +70,171 @@ def evaluate_regression(predictions, targets, y_mean=None, y_std=None):
     return {"MAE": mae, "NLL": nll, "PICP": picp, "RMSE": rmse}
 
 
-def clear():
-    os.system("cls" if os.name == "nt" else "clear")
+helpers.check_repo_clean()
 
 
-def main():
-    print("Training and evaluation script")
-    print("Loading datasets...")
+parser = argparse.ArgumentParser(
+    prog="GP Benchmark",
+    description="...",
+    epilog="...",
+)
 
-    sets = instantiate_all_datasets()
-    print("Loaded datasets:")
-    print("\n")
-    for s in sets:
-        print(str(s))
+parser.add_argument("-f", "--config_file")
+parser.add_argument("-dv", "--device")
+parser.add_argument("-d", "--datasets")
+parser.add_argument("-s", "--split")
+parser.add_argument("-st", "--standardize")
+parser.add_argument("-g", "--gp")
+parser.add_argument("-k", "--kernel")
+parser.add_argument("-l", "--likelyhood")
+parser.add_argument("-m", "--mean")
+parser.add_argument("-o", "--optimizer")
+parser.add_argument("-lr", "--learningrate", type=float)
+parser.add_argument("-lit", "--lgbfs_max_it", type=int)
+parser.add_argument("-as", "--approximation_size", type=int)
+parser.add_argument("-i", "--iterations", type=int)
+parser.add_argument("-s", "--seed", type=int)
+parser.add_argument("-r", "--shuffle", action="store_true")  # on/off flag
 
-    print("\n")
-    print("Choose dataset split: [training], [validation], [testing]")
-    split_str_list = input().split(",")
+args = parser.parse_args()
 
-    split_train, split_val, split_test = (
-        float(split_str_list[0]),
-        float(split_str_list[1]),
-        float(split_str_list[2]),
+
+sets = instantiate_all_datasets()
+print("Loaded datasets:")
+print("\n")
+for s in sets:
+    print(str(s))
+
+split_str_list = args.split.split(",")
+
+split_train, split_val, split_test = (
+    float(split_str_list[0]),
+    float(split_str_list[1]),
+    float(split_str_list[2]),
+)
+split_fractions = (split_train, split_val, split_test)
+
+std_split_str_list = args.standardize.split(",")
+std_split_bool_list = [e == "y" for e in std_split_str_list]
+st_split = (
+    (std_split_bool_list[0], std_split_bool_list[1]),
+    (std_split_bool_list[2], std_split_bool_list[3]),
+    (std_split_bool_list[4], std_split_bool_list[5]),
+)
+
+gp_select = args.gp
+
+kernel_select = args.kernel
+
+
+ll_select = args.likelyhood
+
+mean_select = args.mean
+
+op_select = args.optimizer
+
+lr = args.learningrate
+
+if op_select == "lbfgs":
+    lbfgs_it = args.lgbfs_max_it
+else:
+    lbfgs_it = 0
+
+iter = args.iterations
+shuffle = args.shuffle
+
+device = args.device
+if device != "cuda" and device != "cpu":
+    raise ValueError("Invalid device: Use 'cuda' or 'cpu'")
+
+if shuffle:
+    seed = args.seed
+else:
+    seed = None
+
+for set in sets:
+    (train, val, test), (y_mean, y_std) = set.get_data_split(
+        split_fractions=split_fractions,
+        standardize_data_splits=st_split,
+        shuffle_data=shuffle,
+        shuffle_seed=seed,
     )
-    split_fractions = (split_train, split_val, split_test)
-    print("\n")
-    print(
-        "Standardize training_x, training_y, validation_x, validation_y, testing_x, testing_y? (y/n)"
-    )
-    std_split_str_list = input().split(",")
-    std_split_bool_list = [e == "y" for e in std_split_str_list]
-    st_split = (
-        (std_split_bool_list[0], std_split_bool_list[1]),
-        (std_split_bool_list[2], std_split_bool_list[3]),
-        (std_split_bool_list[4], std_split_bool_list[5]),
-    )
-    print("\n")
-    print("Select GP type:")
-    print("1. Exact")
-    print("2. SVGP")
 
-    gp_select = int(input())
+    match ll_select:
+        case "gaussian":
+            likelihood = gpytorch.likelihoods.GaussianLikelihood()
+            ll_str = "Gaussian"
+        case _:
+            likelihood = gpytorch.likelihoods.GaussianLikelihood()
+            ll_str = "Gaussian"
 
-    print("\n")
-    print("Select kernel:")
-    print("1. RBF")
-    print("2. Matern 2.5")
+    match kernel_select:
+        case "RBF":
+            kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+            kernel_str = "RBF"
+        case "matern2.5":
+            kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=2.5))
+            kernel_str = "Matern 2.5"
+        case _:
+            kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+            kernel_str = "RBF"
 
-    kernel_select = int(input())
+    match mean_select:
+        case "constant":
+            mean = gpytorch.means.ConstantMean()
+            mean_str = "Constant Mean"
+        case _:
+            mean = gpytorch.means.ConstantMean()
+            mean_str = "Constant Mean"
 
-    print("\n")
+    match gp_select:
+        case "exact":
+            model = ExactGPModel(train, test, likelihood, kernel)
+        case "exactcg":
+            model = ExactGPConjGradients(train, test, likelihood, kernel)
+        case "svgp":
+            n = args.approximation_size
+            inducing_points = train[0][:n, :]
+            model = SparseVariationalGP(inducing_points, train, test, likelihood)
+        case "cagp":
+            model = CAGPModel(
+                train, test, 1, likelihood, kernel=kernel, mean_module=mean
+            )
+        case _:
+            model = ExactGPModel(train, test, likelihood, kernel)
 
-    print("Select Likelihood type:")
-    print("1. Gaussian")
+    match op_select:
+        case 1:
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+            opt_str = f"Adam, LR: {lr}"
+        case 2:
+            optimizer = torch.optim.LBFGS(model.parameters(), lr=lr, max_iter=lbfgs_it)
+            opt_str = f"LBFGS, LR: {lr}, MaxIter: {lbfgs_it}"
+        case _:
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+            opt_str = f"Adam, LR: {lr}"
 
-    ll_select = int(input())
+    time_start = time.time()
+    model.run_training(optimizer, iterations=iter)
+    time_end = time.time()
 
-    print("\n")
+    post = model.predict(test[0])
+    eval = {
+        "dataset": str(set),
+        "modelType": str(model),
+        "kernel": kernel_str,
+        "likelihood": ll_str,
+        "mean": mean_str,
+        "optimizer": opt_str,
+        "shuffledData": shuffle,
+        "seed": seed,
+        "evalData": evaluate_regression(post, test[1], y_mean, y_std),
+        "trainingTime": time_end - time_start,
+        "device": device,
+        "git_commit_hash": helpers.get_git_revision_hash(),
+    }
 
-    print("Select Optimizer type:")
-    print("1. Adam")
-    print("2. LBFGS")
-
-    op_select = int(input())
-
-    print("\n")
-
-    print("Choose optimizer learning rate:")
-    lr = float(input())
-
-    print("\n")
-
-    if op_select == 2:
-        print("Choose LBFGS max iteration count:")
-        lbfgs_it = int(input())
-        print("\n")
-    else:
-        lbfgs_it = 0
-
-    print("Choose training loop iteration count:")
-    iter = int(input())
-    print("\n")
-
-    print("Shuffle data? (y/n)")
-    shuffle = input() == "y"
-
-    print("\n")
-
-    if shuffle:
-        print("Input seed:")
-        seed = int(input())
-    else:
-        seed = None
-
-    for set in sets:
-        (train, val, test), (y_mean, y_std) = set.get_data_split(
-            split_fractions=split_fractions,
-            standardize_data_splits=st_split,
-            shuffle_data=shuffle,
-            shuffle_seed=seed,
-        )
-
-        match ll_select:
-            case 1:
-                likelihood = gpytorch.likelihoods.GaussianLikelihood()
-                ll_str = "Gaussian"
-            case _:
-                likelihood = gpytorch.likelihoods.GaussianLikelihood()
-                ll_str = "Gaussian"
-
-        match kernel_select:
-            case 1:
-                kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
-                kernel_str = "RBF"
-            case 2:
-                kernel = gpytorch.kernels.ScaleKernel(
-                    gpytorch.kernels.MaternKernel(nu=2.5)
-                )
-                kernel_str = "Matern 2.5"
-            case _:
-                kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
-                kernel_str = "RBF"
-
-        match gp_select:
-            case 1:
-                model = ExactGPModel(train, test, likelihood, kernel)
-            case 2:
-                n = train[0].size(dim=0)
-                n = math.ceil(n / 20)
-                inducing_points = train[0][:n, :]
-                model = SparseVariationalGP(inducing_points, train, test, likelihood)
-
-            case _:
-                model = ExactGPModel(train, test, likelihood, kernel)
-
-        match op_select:
-            case 1:
-                optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-                opt_str = f"Adam, LR: {lr}"
-            case 2:
-                optimizer = torch.optim.LBFGS(
-                    model.parameters(), lr=lr, max_iter=lbfgs_it
-                )
-                opt_str = f"LBFGS, LR: {lr}, MaxIter: {lbfgs_it}"
-            case _:
-                optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-                opt_str = f"Adam, LR: {lr}"
-
-        time_start = time.time()
-        model.run_training(optimizer, iterations=iter)
-        time_end = time.time()
-
-        post = model.predict(test[0])
-        eval = {
-            "dataset": str(set),
-            "modelType": str(model),
-            "kernel": kernel_str,
-            "likelihood": ll_str,
-            "optimizer": opt_str,
-            "shuffledData": shuffle,
-            "seed": seed,
-            "evalData": evaluate_regression(post, test[1], y_mean, y_std),
-            "trainingTime": time_end - time_start,
-        }
-
-        results_dir = Path(f"results/{str(set)}/{str(model)}")
-        results_dir.mkdir(parents=True, exist_ok=True)
-        with open(results_dir / "results.json", "w") as f:
-            json.dump(eval, f, indent=2)
-
-
-main()
+    results_dir = Path(f"results/{str(set)}/{str(model)}")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    with open(results_dir / "results.json", "w") as f:
+        json.dump(eval, f, indent=2)
