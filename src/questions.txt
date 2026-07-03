@@ -1,3 +1,7 @@
 cagp missing kernel functions
 cagp projection dim
 
+replace exact logdet in exact w cg
+return prior or post covar in exact w cg prediction
+
+comp aware elbo ln55 missing func

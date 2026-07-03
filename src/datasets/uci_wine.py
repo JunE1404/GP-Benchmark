@@ -3,7 +3,7 @@ from typing import Any
 
 from ucimlrepo import fetch_ucirepo
 
-from .regression_dataset import RegressionDataset
+from .regression_dataset import GetLocal, RegressionDataset
 
 
 class UCIWineQuality(RegressionDataset):
@@ -18,9 +18,14 @@ class UCIWineQuality(RegressionDataset):
             targets: Ignored; data is fetched from UCI.
             feature_types: Ignored; all features are treated as continuous.
         """
-        wine_quality = fetch_ucirepo(id=186)
-        data: Any = wine_quality
-        features = data.data.features.to_numpy()
-        targets = data.data.targets.to_numpy()
+        f_local, t_local = GetLocal(self)
+        if f_local is None or t_local is None:
+            wine_quality = fetch_ucirepo(id=186)
+            data: Any = wine_quality
+            features = data.data.features.to_numpy()
+            targets = data.data.targets.to_numpy()
+        else:
+            features = f_local
+            targets = t_local
         feature_types = ["con"] * features.shape[1]
         super().__init__(features, targets, feature_types)

@@ -1,4 +1,5 @@
 from abc import ABC
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
@@ -27,6 +28,8 @@ class RegressionDataset:
         self.features = self._convert_to_tensor(features)
         self.targets = self._convert_to_tensor(targets).flatten()
         self.feature_types = feature_types
+
+        SaveLocal(self, self.features, self.targets)
 
         if self.features.ndim == 1:
             self.features = self.features.unsqueeze(-1)
@@ -280,3 +283,23 @@ class RegressionDataset:
         )
 
         return (st_train, st_val, st_test), (t_y_mean, t_y_std)
+
+
+def GetLocal(ds: RegressionDataset) -> tuple[Tensor | None, Tensor | None]:
+    p_str = f"datasets/localfiles/{str(ds)}.pt"
+    p = Path(p_str)
+    if p.exists():
+        tensors = torch.load(p_str)
+        features = tensors["features"]
+        targets = tensors["targets"]
+        return features, targets
+    else:
+        return None, None
+
+
+def SaveLocal(ds: RegressionDataset, features: Tensor, targets: Tensor):
+    p_str = f"datasets/localfiles/{str(ds)}.pt"
+    p = Path(p_str)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tensors = {"features": features, "targets": targets}
+    torch.save(tensors, p_str)

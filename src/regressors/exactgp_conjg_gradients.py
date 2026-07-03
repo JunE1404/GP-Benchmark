@@ -2,9 +2,45 @@ import math
 
 import gpytorch
 import torch
-from linear_operator.utils import StochasticLQ
-from linear_operator.utils.linear_cg import linear_cg
 from torch import Tensor
+
+
+def _cg(matmul, b, max_iter=100, tol=1e-10):
+    """Conjugate Gradient solver, autograd-compatible.
+
+    Solves ``A @ x = b`` for symmetric positive-definite A using CG.
+    All operations use standard PyTorch ops (no ``out=`` arguments),
+    so gradients flow correctly through ``matmul``.
+
+    Args:
+        matmul: Callable ``v -> A @ v``.
+        b: Right-hand side tensor of shape ``(N,)`` or ``(N, 1)``.
+        max_iter: Maximum number of CG iterations.
+        tol: Relative residual tolerance for early stopping.
+
+    Returns:
+        Solution tensor ``x`` of the same shape as ``b``.
+    """
+    x = torch.zeros_like(b)
+    r = b - matmul(x)
+    p = r.clone()
+    rsold = torch.dot(r.flatten(), r.flatten())
+
+    for _ in range(max_iter):
+        Ap = matmul(p)
+        pAp = torch.dot(p.flatten(), Ap.flatten())
+        if pAp <= 0:
+            break
+        alpha = rsold / pAp
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rsnew = torch.dot(r.flatten(), r.flatten())
+        if torch.sqrt(rsnew) < tol:
+            break
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+
+    return x
 
 
 class ExactGPConjGradients(gpytorch.models.ExactGP):
@@ -86,21 +122,26 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             N = x_train.shape[0]
             noise = self.likelihood.noise
 
-            def matmul(v):
-                return self.covar_module(x_train, x_train) @ v + noise * v
+            # Build the full kernel matrix once (supports autograd)
+            K = self.covar_module(x_train, x_train).to_dense()
+
+            # Add jitter for numerical stability
+            jitter = 1e-6 * torch.eye(N, device=x_train.device, dtype=x_train.dtype)
+            K_noisy = (
+                K
+                + noise * torch.eye(N, device=x_train.device, dtype=x_train.dtype)
+                + jitter
+            )
 
             y_centered = y_train - self.mean_module(x_train)
             # CG solve
-            alpha = linear_cg(matmul, y_centered, max_iter=50)
+            alpha = _cg(lambda v: K_noisy @ v, y_centered, max_iter=50)
 
             # Log-det
-            slq = StochasticLQ(max_iter=20, num_random_probes=10)
-            logdet = slq.evaluate(
-                matmul, matrix_shape=(N, N), funcs=[lambda x: x.log()]
-            )
+            logdet = torch.linalg.slogdet(K_noisy)[1] #Exact -> still n^3 replace?
 
             # Cache α for prediction
-            self._alpha = alpha
+            self._alpha = alpha.detach().clone()
 
             return 0.5 * (y_centered @ alpha + logdet + N * math.log(2 * math.pi))
 

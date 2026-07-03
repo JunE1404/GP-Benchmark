@@ -4,6 +4,7 @@ import inspect
 import json
 import pkgutil
 import time
+from datetime import datetime
 from pathlib import Path
 
 import gpytorch
@@ -70,7 +71,7 @@ def evaluate_regression(predictions, targets, y_mean=None, y_std=None):
     return {"MAE": mae, "NLL": nll, "PICP": picp, "RMSE": rmse}
 
 
-helpers.check_repo_clean()
+# helpers.check_repo_clean()
 
 
 parser = argparse.ArgumentParser(
@@ -194,6 +195,8 @@ for set in sets:
             model = ExactGPConjGradients(train, test, likelihood, kernel, mean, device)
         case "svgp":
             n = args.approximation_size
+            if n > train[0].shape[0]:
+                n = train[0].shape[0]
             inducing_points = train[0][:n, :]
             model = SparseVariationalGP(
                 inducing_points, train, test, likelihood, kernel, mean, device
@@ -225,7 +228,8 @@ for set in sets:
     time_start = time.time()
     model.run_training(optimizer, iterations=iter)
     time_end = time.time()
-
+    now = datetime.now()
+    datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
     post = model.predict(test[0])
     eval = {
         "dataset": str(set),
@@ -240,9 +244,10 @@ for set in sets:
         "trainingTime": time_end - time_start,
         "device": device,
         "git_commit_hash": helpers.get_git_revision_hash(),
+        "date": datetime_str,
     }
 
     results_dir = Path(f"results/{str(set)}/{str(model)}")
     results_dir.mkdir(parents=True, exist_ok=True)
-    with open(results_dir / "results.json", "w") as f:
+    with open(results_dir / f"{datetime_str}.json", "w") as f:
         json.dump(eval, f, indent=2)
