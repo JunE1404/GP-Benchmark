@@ -29,6 +29,28 @@ Invertible transform class for data (forward -> std, backwards -> unstandardize 
 
 result eval framework !
 
+Switch to Keops kernels
+
+Cant run exact for big datasets > for big datasets select random 1024/2048 datapoints
+        - For SVGP 1024/2048 inducing points
+        - For CAGP 1024/2048 actions (projection dim)
+        - How to set for ExactCG
+
+    -> run on wine see results
+
+k-means clustering for svgp
+
+Implement Exact from scratch for understanding
+
+    - 1D regression
+    - zero prior mean
+    - rbf kernel
+    - implement posterior calc for mean and covar
+    - plot posterior for different sigma and lengthscale
+    - use cholesky decomp
+
+Use Notebook for visual debugging (on 1D)
+
 ----------------------------------------
 python main.py --split "0.7,0,0.3" --standardize "y,y,y,y,y,y,y" --gp "exact" --kernel "RBF" --likelyhood "gaussian" --mean "constant" --optimizer "adam" --learningrate 0.1 --iterations 100 --shuffle --seed 42 --device "cuda"
 
