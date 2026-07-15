@@ -110,28 +110,23 @@ class ComputationAwareGP(ExactGP):
             # Kernel forward and hyperparameters
             if isinstance(self.covar_module, kernels.ScaleKernel):
                 outputscale = self.covar_module.outputscale
-                lengthscale = self.covar_module.base_kernel.lengthscale
-                kernel_forward_fn = (
-                    self.covar_module.base_kernel._forward_no_kernel_linop
-                )
+                kernel_forward_fn = self.covar_module.base_kernel
             else:
                 outputscale = 1.0
-                lengthscale = self.covar_module.lengthscale
-                kernel_forward_fn = self.covar_module._forward_no_kernel_linop
+                kernel_forward_fn = self.covar_module
 
             if self.cholfac_gram_SKhatS is None:
                 # If the Cholesky factor of the gram matrix S'(K + noise)S hasn't been precomputed
                 # (in the loss function), compute it.
                 K_lazy = kernel_forward_fn(  # type: ignore[reportOptionalSubscript, union-attr]
                     self.train_inputs[0]
-                    .div(lengthscale)
                     .view(
+                        1,
                         self.projection_dim,
                         self.num_non_zero,
                         self.train_inputs[0].shape[-1],
                     ),
                     self.train_inputs[0]
-                    .div(lengthscale)
                     .view(
                         self.projection_dim,
                         1,
@@ -165,8 +160,8 @@ class ComputationAwareGP(ExactGP):
             covar_x_train_actions = (
                 (
                     kernel_forward_fn(  # type: ignore[reportOptionalSubscript, union-attr]
-                        x / lengthscale,
-                        (self.train_inputs[0] / lengthscale).view(
+                        x,
+                        self.train_inputs[0].view(
                             self.projection_dim,
                             self.num_non_zero,
                             self.train_inputs[0].shape[-1],

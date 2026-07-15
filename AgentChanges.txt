@@ -1,0 +1,53 @@
+Agent Changes (2026-07-11)
+===========================
+
+Changes made by the Zed AI coding agent to fix the Computation-Aware GP (CAGP)
+training crash and associated issues.
+
+1. comp_aware_elbo.py — Kernel evaluation method not found
+----------------------------------------------------------
+File: src/regressors/additional_sources/mlls/comp_aware_elbo.py
+
+Problem: Called self.model.covar_module.forward_keops(...) on a ScaleKernel,
+         which does not have a forward_keops method. This was likely written
+         for a keops-enabled custom kernel version.
+
+Fix: Replaced forward_keops with gpytorch's standard kernel __call__ using
+     broadcasted input shapes:
+       x1.view(1, P, N, D) and x2.view(P, 1, N, D)
+     These broadcast to (P, P, N, D), and the kernel returns (P, P, N, N),
+     which is the block-structured matrix the downstream code expects
+     (matmul with action blocks, gramian S'KS computation).
+
+2. computaion_aware.py — Kernel evaluation in posterior prediction
+-------------------------------------------------------------------
+File: src/regressors/additional_sources/gps/computaion_aware.py
+
+Problem: Used _forward_no_kernel_linop (also nonexistent in gpytorch 1.15.2)
+         and manually divided inputs by lengthscale (which the kernel already
+         handles internally).
+
+Fix: Replaced with the base kernel's __call__ using the same broadcast pattern,
+     and removed the manual / lengthscale divisions. The outputscale
+     multiplication is preserved since we use the base_kernel (not the full
+     ScaleKernel).
+
+3. cagp.py — Device mismatch in predict()
+------------------------------------------
+File: src/regressors/cagp.py
+
+Problem: predict() moved test inputs x to CUDA unconditionally when
+         torch.cuda.is_available() was True, even if the model was on CPU.
+         This caused a RuntimeError during the posterior kernel computation.
+
+Fix: Changed the device check from torch.cuda.is_available() to
+     next(self.parameters()).is_cuda, so test inputs are only moved to CUDA
+     when the model itself is on CUDA.
+
+About the CAGP algorithm
+------------------------
+This implementation comes from the "Computation-Aware Gaussian Processes" paper.
+The original code appears to have been written against a modified version of
+gpytorch that included custom kernel methods (forward_keops, _forward_no_kernel_linop)
+for efficient block-structured kernel evaluation via the KeOps library.
+The above changes adapt the code to work with standard gpytorch 1.15.2 kernel APIs.
