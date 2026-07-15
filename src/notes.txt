@@ -50,6 +50,7 @@ Implement Exact from scratch for understanding
     - use cholesky decomp
 
 Use Notebook for visual debugging (on 1D)
+.
 
 ----------------------------------------
 python main.py --split "0.7,0,0.3" --standardize "y,y,y,y,y,y,y" --gp "exact" --kernel "RBF" --likelyhood "gaussian" --mean "constant" --optimizer "adam" --learningrate 0.1 --iterations 100 --shuffle --seed 42 --device "cuda"
