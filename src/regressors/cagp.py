@@ -143,7 +143,7 @@ class CAGPModel(ComputationAwareGP):
             raise ValueError(
                 "The model needs to be trained first. run .run_training(optimizer, iterations)"
             )
-        if torch.cuda.is_available():
+        if next(self.parameters()).is_cuda:
             x = x.cuda()
         self.eval()
         self.likelihood.eval()

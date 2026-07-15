@@ -7,7 +7,7 @@ import torch
 from gpytorch import kernels, models, settings
 from gpytorch.likelihoods import GaussianLikelihood, _GaussianLikelihoodBase
 from gpytorch.mlls import MarginalLogLikelihood
-from linear_operator import utils
+from linear_operator import operators, utils as linop_utils
 
 
 class ComputationAwareELBO(MarginalLogLikelihood):
@@ -24,10 +24,9 @@ class ComputationAwareELBO(MarginalLogLikelihood):
             )
         super().__init__(likelihood, model)
 
-    def forward(self, outputs: torch.Tensor, targets: torch.Tensor, **kwargs):  # type: ignore[reportOptionalSubscript, union-attr]
-
+    def forward(self, outputs: torch.Tensor, targets: torch.Tensor, **kwargs):# type: ignore[reportOptionalSubscript, union-attr]
         # Initialize some useful variables
-        train_inputs = self.model.train_inputs[0]  # type: ignore[reportOptionalSubscript, union-attr]
+        train_inputs = self.model.train_inputs[0]# type: ignore[reportOptionalSubscript, union-attr]
         train_targets = self.model.train_targets
         num_train_data = len(train_targets)
         prior_evaluated_at_train_inputs = outputs[
@@ -47,64 +46,47 @@ class ComputationAwareELBO(MarginalLogLikelihood):
                     "You must evaluate the objective on the training inputs!"
                 )
 
-        # Kernel
-        if isinstance(self.model.covar_module, kernels.ScaleKernel):
-            outputscale = self.model.covar_module.outputscale
-            lengthscale = self.model.covar_module.base_kernel.lengthscale
-            kernel_forward_fn = (
-                self.model.covar_module.base_kernel._forward_no_kernel_linop
-            )
-        else:
-            outputscale = 1.0
-            lengthscale = self.model.covar_module.lengthscale
-            kernel_forward_fn = self.model.covar_module._forward_no_kernel_linop
-
         # Explicitly free up memory from prediction to avoid unnecessary memory overhead
-        # TODO: does this really do much, since we detach it from the graph anyway?
         del self.model.cholfac_gram_SKhatS
 
         # Lazily evaluate kernel at training inputs as a 4D tensor with shape (PROJ_DIM, PROJ_DIM, NNZ, NNZ)
-        K_lazy = kernel_forward_fn(  # type: ignore[reportOptionalSubscript, union-attr]
-            train_inputs.div(lengthscale).view(
-                self.model.projection_dim,
-                self.model.num_non_zero,
-                train_inputs.shape[-1],
-            ),
-            train_inputs.div(lengthscale).view(
-                self.model.projection_dim,
-                1,
-                self.model.num_non_zero,
-                train_inputs.shape[-1],
-            ),
+        # Reshape inputs so that the kernel call broadcasts to (P, P, N, N):
+        #   x1: (1, P, N, D), x2: (P, 1, N, D) -> broadcast to (P, P, N, D) -> kernel (P, P, N, N)
+        x1 = train_inputs.view(
+            1,
+            self.model.projection_dim,
+            self.model.num_non_zero,
+            train_inputs.shape[-1],
         )
+        x2 = train_inputs.view(
+            self.model.projection_dim,
+            1,
+            self.model.num_non_zero,
+            train_inputs.shape[-1],
+        )
+        K_lazy = self.model.covar_module(x1, x2) # type: ignore[reportOptionalSubscript, union-attr]
 
         # Compute S'K in block shape (PROJ_DIM, PROJ_DIM, NNZ)
-        StK_block_shape = (
+        StK_block_shape = (# type: ignore[reportOptionalSubscript, union-attr]
             K_lazy
-            @ self.model.actions_op.blocks.view(  # type: ignore[reportOptionalSubscript, union-attr]
+            @ self.model.actions_op.blocks.view(# type: ignore[reportOptionalSubscript, union-attr]
                 self.model.projection_dim, 1, self.model.num_non_zero, 1
             )
         ).squeeze(-1)
-        covar_x_batch_X_train_actions = (
-            StK_block_shape.view(
-                self.model.projection_dim,
-                self.model.projection_dim * self.model.num_non_zero,
-            )
-            .mul(outputscale)
-            .mT
-        )
+        covar_x_batch_X_train_actions = StK_block_shape.view(
+            self.model.projection_dim,
+            self.model.projection_dim * self.model.num_non_zero,
+        ).mT
 
         # Projected Gramians S'KS and S'(K + noise)S
-        gram_SKS = (
-            (StK_block_shape * self.model.actions_op.blocks).sum(-1).mul(outputscale)
-        )
+        gram_SKS = (StK_block_shape * self.model.actions_op.blocks).sum(-1)
         StrS_diag = (self.model.actions_op.blocks**2).sum(
             -1
         )  # NOTE: Assumes orthogonal actions.
         gram_SKhatS = gram_SKS + torch.diag(self.likelihood.noise * StrS_diag)
 
         # Cholesky factor of Gramian
-        cholfac_gram_SKhatS = utils.cholesky.psd_safe_cholesky(
+        cholfac_gram_SKhatS = linop_utils.cholesky.psd_safe_cholesky(
             gram_SKhatS.to(dtype=torch.float64), upper=False
         )
 
@@ -112,7 +94,7 @@ class ComputationAwareELBO(MarginalLogLikelihood):
         self.model.cholfac_gram_SKhatS = cholfac_gram_SKhatS.clone().detach()
 
         # "Projected" training data (with mean correction)
-        actions_targets = self.model.actions_op._matmul(  # type: ignore[reportOptionalSubscript, union-attr]
+        actions_targets = self.model.actions_op._matmul(# type: ignore[reportOptionalSubscript, union-attr]
             torch.atleast_2d(train_targets - prior_evaluated_at_train_inputs.mean).mT
         ).squeeze(-1)
 
@@ -156,9 +138,7 @@ class ComputationAwareELBO(MarginalLogLikelihood):
             + 2 * torch.sum(torch.log(cholfac_gram_SKhatS.diagonal()))
             - self.model.projection_dim
             * torch.log(self.likelihood.noise).to(dtype=torch.float64)
-            - torch.log(
-                StrS_diag.to(dtype=torch.float64)
-            ).sum()  # NOTE: Assumes orthogonal actions
+            - torch.log(StrS_diag.to(dtype=torch.float64).sum())
             - torch.trace(
                 torch.cholesky_solve(
                     gram_SKS.to(dtype=torch.float64), cholfac_gram_SKhatS, upper=False
