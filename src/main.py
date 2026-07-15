@@ -215,10 +215,10 @@ for set in sets:
             model = ExactGPModel(train, test, likelihood, kernel, mean, device)
 
     match op_select:
-        case 1:
+        case "adam":
             optimizer = torch.optim.Adam(model.parameters(), lr=lr)
             opt_str = f"Adam, LR: {lr}"
-        case 2:
+        case "lbfgs":
             optimizer = torch.optim.LBFGS(model.parameters(), lr=lr, max_iter=lbfgs_it)
             opt_str = f"LBFGS, LR: {lr}, MaxIter: {lbfgs_it}"
         case _:
