@@ -1,0 +1,16 @@
+{
+    "dataset": "wine",
+    "data_split": "0.7,0,0.3",
+    "data_standartization": "y,y,y,y,y,y,y",
+    "device": "cuda",
+    "gp": "exact",
+    "kernel": "RBF",
+    "likelyhood": "gaussian",
+    "mean": "constant",
+    "optimizer": "adam",
+    "learningrate": 0.1,
+    "iterations": 100,
+    "approximation_size": 1024,
+    "seed": 42,
+    "shuffle": true
+}

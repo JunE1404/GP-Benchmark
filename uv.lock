@@ -253,6 +253,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "argparse" },
+    { name = "cuda-toolkit" },
     { name = "gpjax" },
     { name = "gpytorch" },
     { name = "matplotlib" },
@@ -266,6 +267,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "argparse", specifier = ">=1.4.0" },
+    { name = "cuda-toolkit", specifier = ">=13.0.2" },
     { name = "gpjax", specifier = ">=0.14.0" },
     { name = "gpytorch", specifier = ">=1.15.2" },
     { name = "matplotlib", specifier = ">=3.10.9" },

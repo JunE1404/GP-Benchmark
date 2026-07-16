@@ -14,3 +14,5 @@ only use CG during prediction?
 problem last time: special function for special keops kernel (only matern on cagp branch has it): do we care about better memory effiency using other kernels? -> Add function to other kernels?
 
 do we run non-keops on all kernels at that step for benchmark purposes?
+
+couldnt properly test keops, problems with cuda

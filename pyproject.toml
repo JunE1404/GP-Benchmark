@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "argparse>=1.4.0",
+    "cuda-toolkit>=13.0.2",
     "gpjax>=0.14.0",
     "gpytorch>=1.15.2",
     "matplotlib>=3.10.9",
