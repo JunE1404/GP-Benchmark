@@ -14,8 +14,14 @@ import helpers
 from datasets.regression_dataset import RegressionDataset
 from regressors.cagp import CAGPModel
 from regressors.exactgp import ExactGPModel
-from regressors.exactgp_conjg_gradients import ExactGPConjGradients
+from regressors.exactgp_conjg_gradients import ExactGPCGModel
 from regressors.svgp import SparseVariationalGP
+from datasets.synthetic_simple import SimpleSyntheticDataset
+from datasets.uci_parkinsons import UCIParkinsonsTelemonitoring
+from datasets.uci_wine import UCIWineQuality
+
+from gpytorch.kernels.keops import RBFKernel as RBFKEops
+from gpytorch.kernels.keops import MaternKernel as MaternKeops
 
 
 def instantiate_all_datasets():
@@ -82,7 +88,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("-f", "--config_file")
 parser.add_argument("-dv", "--device")
-parser.add_argument("-d", "--datasets")
+parser.add_argument("-d", "--dataset")
 parser.add_argument("-sp", "--split")
 parser.add_argument("-st", "--standardize")
 parser.add_argument("-g", "--gp")
@@ -100,11 +106,11 @@ parser.add_argument("-r", "--shuffle", action="store_true")  # on/off flag
 args = parser.parse_args()
 
 
-sets = instantiate_all_datasets()
-print("Loaded datasets:")
-print("\n")
-for s in sets:
-    print(str(s))
+#sets = instantiate_all_datasets()
+#print("Loaded datasets:")
+#print("\n")
+##for s in sets:
+   # print(str(s))
 
 split_str_list = args.split.split(",")
 
@@ -153,8 +159,22 @@ if shuffle:
 else:
     seed = None
 
-for set in sets:
-    (train, val, test), (y_mean, y_std) = set.get_data_split(
+dset = None
+
+s = args.dataset
+
+match s:
+    case "synth":
+        dset = SimpleSyntheticDataset()
+    case "parkinsons":
+        dset = UCIParkinsonsTelemonitoring()
+    case "wine":
+        dset = UCIWineQuality()
+    case _:
+        dset = None
+
+if dset is not None:
+    (train, val, test), (y_mean, y_std) = dset.get_data_split(
         split_fractions=split_fractions,
         standardize_data_splits=st_split,
         shuffle_data=shuffle,
@@ -176,6 +196,12 @@ for set in sets:
         case "matern2.5":
             kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=2.5))
             kernel_str = "Matern 2.5"
+        case "RBFKeops":
+            kernel = gpytorch.kernels.ScaleKernel(RBFKEops())
+            kernel_str = "RBF Keops"
+        case "matern2.5Keops":
+            kernel = gpytorch.kernels.ScaleKernel(MaternKeops(nu=2.5))
+            kernel_str = "Matern 2.5 Keops"
         case _:
             kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
             kernel_str = "RBF"
@@ -192,7 +218,7 @@ for set in sets:
         case "exact":
             model = ExactGPModel(train, test, likelihood, kernel, mean, device)
         case "exactcg":
-            model = ExactGPConjGradients(train, test, likelihood, kernel, mean, device)
+            model = ExactGPCGModel(train, test, likelihood, kernel, mean, device)
         case "svgp":
             n = args.approximation_size
             if n > train[0].shape[0]:
@@ -230,9 +256,11 @@ for set in sets:
     time_end = time.time()
     now = datetime.now()
     datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
+    start_time_eval = time.time()
     post = model.predict(test[0])
+    end_time_eval = time.time()
     eval = {
-        "dataset": str(set),
+        "dataset": str(dset),
         "modelType": str(model),
         "kernel": kernel_str,
         "likelihood": ll_str,
@@ -242,12 +270,13 @@ for set in sets:
         "seed": seed,
         "evalData": evaluate_regression(post, test[1], y_mean, y_std),
         "trainingTime": time_end - time_start,
+        "evalTime": end_time_eval - start_time_eval,
         "device": device,
         "git_commit_hash": helpers.get_git_revision_hash(),
         "date": datetime_str,
     }
 
-    results_dir = Path(f"results/{str(set)}/{str(model)}")
+    results_dir = Path(f"results/{str(dset)}/{str(model)}")
     results_dir.mkdir(parents=True, exist_ok=True)
     with open(results_dir / f"{datetime_str}.json", "w") as f:
         json.dump(eval, f, indent=2)

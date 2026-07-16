@@ -1,6 +1,7 @@
 import gpytorch
 import torch
 from torch import Tensor
+import contextlib
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
@@ -48,6 +49,16 @@ class ExactGPModel(gpytorch.models.ExactGP):
             self.train_data = (train_data[0].cuda(), train_data[1].cuda())
             self.test_data = (test_data[0].cuda(), test_data[1].cuda())
 
+    @contextlib.contextmanager
+    def _settings_context(self):
+        """Context manager that applies exact-GP settings (Cholesky everywhere)."""
+        with gpytorch.settings.fast_computations(
+            covar_root_decomposition=False,
+            log_prob=False,
+            solves=False,
+        ), gpytorch.settings.max_cholesky_size(float("inf")):
+            yield
+
     def __str__(self) -> str:
         return "ExactGP"
 
@@ -75,48 +86,48 @@ class ExactGPModel(gpytorch.models.ExactGP):
             optimizer: A PyTorch optimizer (e.g. Adam or LBFGS).
             iterations: Number of optimization iterations.
         """
+        with self._settings_context():
+            def _compute_loss(mll, x_train, y_train):
+                """Compute the negative marginal log-likelihood loss."""
+                output = self(x_train)
+                return -mll(output, y_train).mean()
 
-        def _compute_loss(mll, x_train, y_train):
-            """Compute the negative marginal log-likelihood loss."""
-            output = self(x_train)
-            return -mll(output, y_train).mean()
+            self.train()
+            self.likelihood.train()
+            mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self)
 
-        self.train()
-        self.likelihood.train()
-        mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self)
+            is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
 
-        is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
-
-        for i in range(iterations):
-            if is_lbfgs:
-
-                def closure():
-                    """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
-                    optimizer.zero_grad()
-                    loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
-                    loss.backward()
-                    return loss
-
-                loss = optimizer.step(closure)
-            else:
+            def closure():
+                """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
                 optimizer.zero_grad()
                 loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
                 loss.backward()
-                optimizer.step()
+                return loss
 
-            # print(
-            #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-            #    % (
-            #        i + 1,
-            #        iterations,
-            #        loss.item(),
-            #        self.covar_module.base_kernel.lengthscale.item(),
-            #        self.likelihood.noise.item(),
-            #    )
-            # )
+            for i in range(iterations):
+                if is_lbfgs:
+
+                    loss = optimizer.step(closure)
+                else:
+                    optimizer.zero_grad()
+                    loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                    loss.backward()
+                    optimizer.step()
+
+                # print(
+                #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
+                #    % (
+                #        i + 1,
+                #        iterations,
+                #        loss.item(),
+                #        self.covar_module.base_kernel.lengthscale.item(),
+                #        self.likelihood.noise.item(),
+                #    )
+                # )
             torch.cuda.empty_cache()
 
-        self.trained = True
+            self.trained = True
 
     def predict(self, x):
         """Get the posterior distribution over test points after training.
@@ -131,10 +142,11 @@ class ExactGPModel(gpytorch.models.ExactGP):
             raise ValueError(
                 "The model needs to be trained first. run .run_training(optimizer, iterations)"
             )
-        if torch.cuda.is_available():
-            x = x.cuda()
-        self.eval()
-        self.likelihood.eval()
-        with torch.no_grad():
-            posterior = self.likelihood(self(x))
-        return posterior
+        with self._settings_context():
+            if torch.cuda.is_available():
+                x = x.cuda()
+            self.eval()
+            self.likelihood.eval()
+            with torch.no_grad():
+                posterior = self.likelihood(self(x))
+            return posterior

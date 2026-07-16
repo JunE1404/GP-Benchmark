@@ -17,7 +17,15 @@ Get dataset data locally X
 add date to result file name and file X
 
 
-Computationally aware GP (not in official GPytorch) !x
+Computationally aware GP (not in official GPytorch) x
+
+Switch to Keops kernels x
+
+exact gp settings x
+
+CG Gp settings x
+
+-------------------------------------------------------------------
 
 Plot different inducing point numbers against each other !
 - Points vs accuracy (closer to exact) !
@@ -29,7 +37,6 @@ Invertible transform class for data (forward -> std, backwards -> unstandardize 
 
 result eval framework !
 
-Switch to Keops kernels
 
 Cant run exact for big datasets > for big datasets select random 1024/2048 datapoints
         - For SVGP 1024/2048 inducing points

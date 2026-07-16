@@ -1,0 +1,21 @@
+{
+  "dataset": "UCIWineQuality",
+  "modelType": "ExactGPConjGradients",
+  "kernel": "RBF Keops",
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "Adam, LR: 0.1",
+  "shuffledData": true,
+  "seed": 42,
+  "evalData": {
+    "MAE": 0.5054193735122681,
+    "NLL": 1.0019687414169312,
+    "PICP": 0.9405128359794617,
+    "RMSE": 0.6629678606987
+  },
+  "trainingTime": 93.87961840629578,
+  "evalTime": 19.643672227859497,
+  "device": "cuda",
+  "git_commit_hash": "0885b125953e74da5bac7354e2a7e9a2d57c5d8e",
+  "date": "16-07-2026_11-32-51"
+}

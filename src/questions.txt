@@ -1,7 +1,16 @@
-cagp missing kernel functions
-cagp projection dim
+cg termination after x iterations vs at specified tolerance?
+-> Extremely large run time on full wine dataset (expected) Eval took 2x longer than training
 
-replace exact logdet in exact w cg
-return prior or post covar in exact w cg prediction
+cg vs exact almost exact same results (including traning time)
 
-comp aware elbo ln55 missing func
+cg max cg iterations parameter?
+
+keops used under the hood
+keops added -> training and eval slower? (smaller set sizes? (pre dataset point nr limit))
+with fast log prob cg tolances on 1.0 -> entire wine ran in 13sec on KeopsRBF, with 1e-12 93s
+only use CG during prediction?
+
+
+problem last time: special function for special keops kernel (only matern on cagp branch has it): do we care about better memory effiency using other kernels? -> Add function to other kernels?
+
+do we run non-keops on all kernels at that step for benchmark purposes?

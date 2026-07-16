@@ -1,49 +1,10 @@
-import math
-
 import gpytorch
 import torch
 from torch import Tensor
+import contextlib
 
 
-def _cg(matmul, b, max_iter=100, tol=1e-10):
-    """Conjugate Gradient solver, autograd-compatible.
-
-    Solves ``A @ x = b`` for symmetric positive-definite A using CG.
-    All operations use standard PyTorch ops (no ``out=`` arguments),
-    so gradients flow correctly through ``matmul``.
-
-    Args:
-        matmul: Callable ``v -> A @ v``.
-        b: Right-hand side tensor of shape ``(N,)`` or ``(N, 1)``.
-        max_iter: Maximum number of CG iterations.
-        tol: Relative residual tolerance for early stopping.
-
-    Returns:
-        Solution tensor ``x`` of the same shape as ``b``.
-    """
-    x = torch.zeros_like(b)
-    r = b - matmul(x)
-    p = r.clone()
-    rsold = torch.dot(r.flatten(), r.flatten())
-
-    for _ in range(max_iter):
-        Ap = matmul(p)
-        pAp = torch.dot(p.flatten(), Ap.flatten())
-        if pAp <= 0:
-            break
-        alpha = rsold / pAp
-        x = x + alpha * p
-        r = r - alpha * Ap
-        rsnew = torch.dot(r.flatten(), r.flatten())
-        if torch.sqrt(rsnew) < tol:
-            break
-        p = r + (rsnew / rsold) * p
-        rsold = rsnew
-
-    return x
-
-
-class ExactGPConjGradients(gpytorch.models.ExactGP):
+class ExactGPCGModel(gpytorch.models.ExactGP):
     train_data: tuple[Tensor, Tensor]
     test_data: tuple[Tensor, Tensor]
     trained: bool
@@ -65,9 +26,7 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
             kernel: Optional custom kernel; defaults to ScaleKernel(RBFKernel()).
         """
-        super(ExactGPConjGradients, self).__init__(
-            train_data[0], train_data[1], likelihood
-        )
+        super(ExactGPCGModel, self).__init__(train_data[0], train_data[1], likelihood)
         if mean_module is None:
             raise ValueError("No mean module set.")
         else:
@@ -90,8 +49,21 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             self.train_data = (train_data[0].cuda(), train_data[1].cuda())
             self.test_data = (test_data[0].cuda(), test_data[1].cuda())
 
+    @contextlib.contextmanager
+    def _settings_context(self):
+        """Context manager that applies CG-for-solves settings."""
+        with gpytorch.settings.fast_computations(
+            covar_root_decomposition=False,
+            log_prob=True,
+            solves=True,
+        ), gpytorch.settings.max_cholesky_size(0), \
+            gpytorch.settings.cg_tolerance(1.0), \
+            gpytorch.settings.eval_cg_tolerance(1e-12), \
+            gpytorch.settings.max_cg_iterations(1000):
+            yield
+
     def __str__(self) -> str:
-        return "ExactGP_CG"
+        return "ExactGPConjGradients"
 
     def forward(self, x):
         """Compute the prior/posterior GP distribution at input points.
@@ -118,68 +90,48 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             iterations: Number of optimization iterations.
         """
 
-        def _compute_loss_cg(x_train, y_train):
-            N = x_train.shape[0]
-            noise = self.likelihood.noise
+        with self._settings_context():
+            def _compute_loss(mll, x_train, y_train):
+                """Compute the negative marginal log-likelihood loss."""
+                output = self(x_train)
+                return -mll(output, y_train).mean()
 
-            # Build the full kernel matrix once (supports autograd)
-            K = self.covar_module(x_train, x_train).to_dense()
+            self.train()
+            self.likelihood.train()
+            mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self)
 
-            # Add jitter for numerical stability
-            jitter = 1e-6 * torch.eye(N, device=x_train.device, dtype=x_train.dtype)
-            K_noisy = (
-                K
-                + noise * torch.eye(N, device=x_train.device, dtype=x_train.dtype)
-                + jitter
-            )
+            is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
 
-            y_centered = y_train - self.mean_module(x_train)
-            # CG solve
-            alpha = _cg(lambda v: K_noisy @ v, y_centered, max_iter=50)
-
-            # Log-det
-            logdet = torch.linalg.slogdet(K_noisy)[1] #Exact -> still n^3 replace?
-
-            # Cache α for prediction
-            self._alpha = alpha.detach().clone()
-
-            return 0.5 * (y_centered @ alpha + logdet + N * math.log(2 * math.pi))
-
-        self.train()
-        self.likelihood.train()
-
-        is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
-
-        for i in range(iterations):
-            if is_lbfgs:
-
-                def closure():
-                    """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
-                    optimizer.zero_grad()
-                    loss = _compute_loss_cg(self.train_data[0], self.train_data[1])
-                    loss.backward()
-                    return loss
-
-                loss = optimizer.step(closure)
-            else:
+            def closure():
+                """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
                 optimizer.zero_grad()
-                loss = _compute_loss_cg(self.train_data[0], self.train_data[1])
+                loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
                 loss.backward()
-                optimizer.step()
+                return loss
 
-            # print(
-            #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-            #    % (
-            #        i + 1,
-            #        iterations,
-            #        loss.item(),
-            #        self.covar_module.base_kernel.lengthscale.item(),
-            #        self.likelihood.noise.item(),
-            #    )
-            # )
+            for i in range(iterations):
+                if is_lbfgs:
+
+                    loss = optimizer.step(closure)
+                else:
+                    optimizer.zero_grad()
+                    loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                    loss.backward()
+                    optimizer.step()
+
+                # print(
+                #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
+                #    % (
+                #        i + 1,
+                #        iterations,
+                #        loss.item(),
+                #        self.covar_module.base_kernel.lengthscale.item(),
+                #        self.likelihood.noise.item(),
+                #    )
+                # )
             torch.cuda.empty_cache()
 
-        self.trained = True
+            self.trained = True
 
     def predict(self, x):
         """Get the posterior distribution over test points after training.
@@ -194,14 +146,11 @@ class ExactGPConjGradients(gpytorch.models.ExactGP):
             raise ValueError(
                 "The model needs to be trained first. run .run_training(optimizer, iterations)"
             )
-        if torch.cuda.is_available():
-            x = x.cuda()
-        self.eval()
-        self.likelihood.eval()
-        with torch.no_grad():
-            prior_mean = self.mean_module(x)
-            k_x_train = self.covar_module(x, self.train_data[0])
-            pred_mean = prior_mean + k_x_train @ self._alpha
-            pred_covar = self.covar_module(x)
-            # no predictive varaince
-        return gpytorch.distributions.MultivariateNormal(pred_mean, pred_covar)
+        with self._settings_context():
+            if torch.cuda.is_available():
+                x = x.cuda()
+            self.eval()
+            self.likelihood.eval()
+            with torch.no_grad():
+                posterior = self.likelihood(self(x))
+            return posterior
