@@ -2,30 +2,28 @@ import argparse
 import importlib
 import inspect
 import json
+import os
 import pkgutil
 import time
-import os
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 import gpytorch
 import torch
+from gpytorch.kernels.keops import MaternKernel as MaternKeops
+from gpytorch.kernels.keops import RBFKernel as RBFKEops
 
 import helpers
-from dataclasses import dataclass
 from datasets.regression_dataset import RegressionDataset
+from datasets.synthetic_simple import SimpleSyntheticDataset
+from datasets.uci_parkinsons import UCIParkinsonsTelemonitoring
+from datasets.uci_wine import UCIWineQuality
+from kmeans import getInducingPoints
 from regressors.cagp import CAGPModel
 from regressors.exactgp import ExactGPModel
 from regressors.exactgp_conjg_gradients import ExactGPCGModel
 from regressors.svgp import SparseVariationalGP
-from datasets.synthetic_simple import SimpleSyntheticDataset
-from datasets.uci_parkinsons import UCIParkinsonsTelemonitoring
-from datasets.uci_wine import UCIWineQuality
-
-from gpytorch.kernels.keops import RBFKernel as RBFKEops
-from gpytorch.kernels.keops import MaternKernel as MaternKeops
-
-from kmeans import getInducingPoints
 
 
 def instantiate_all_datasets():
@@ -109,6 +107,7 @@ parser.add_argument("-r", "--shuffle", action="store_true")  # on/off flag
 
 args = parser.parse_args()
 
+
 @dataclass
 class RunArguments:
     device: str
@@ -126,8 +125,7 @@ class RunArguments:
     iterations: int
     seed: int
     shuffle: bool
-
-
+    svgp_strategy: str
 
 
 def get_from_args() -> RunArguments:
@@ -166,48 +164,53 @@ def get_from_args() -> RunArguments:
     else:
         seed = None
 
-
     s = args.dataset
 
-    return RunArguments(approximation_size=app_size,
-                        dataset=s,
-                        device=device,
-                        gp=gp_select,
-                        iterations=iter,
-                        kernel=kernel_select,
-                        learningrate=lr,
-                        likelyhood=ll_select,
-                        mean=mean_select,
-                        shuffle=shuffle,
-                        seed=seed,
-                        lbfgs_max_it=lbfgs_it,
-                        split=split_select,
-                        optimizer=op_select,
-                        standardize=std_select)
+    return RunArguments(
+        approximation_size=app_size,
+        dataset=s,
+        device=device,
+        gp=gp_select,
+        iterations=iter,
+        kernel=kernel_select,
+        learningrate=lr,
+        likelyhood=ll_select,
+        mean=mean_select,
+        shuffle=shuffle,
+        seed=seed,
+        lbfgs_max_it=lbfgs_it,
+        split=split_select,
+        optimizer=op_select,
+        standardize=std_select,
+    )
+
 
 def get_from_config(path: str):
-    with open(path,"r") as f:
+    with open(path, "r") as f:
         data = json.load(f)
         if data["optimizer"] == "lbfgs":
             lbfgs_max_it = data["lbfgs_max_iter"]
         else:
             lbfgs_max_it = None
 
-        return RunArguments(approximation_size=data["approximation_size"],
-                            dataset=data["dataset"],
-                            device=data["device"],
-                            gp=data["gp"],
-                            iterations=int(data["iterations"]),
-                            kernel=data["kernel"],
-                            learningrate=data["learningrate"],
-                            likelyhood=data["likelyhood"],
-                            mean=data["mean"],
-                            shuffle=bool(data["shuffle"]),
-                            seed=int(data["seed"]),
-                            lbfgs_max_it=lbfgs_max_it,
-                            split=data["data_split"],
-                            optimizer=data["optimizer"],
-                            standardize=data["data_standartization"])
+        return RunArguments(
+            approximation_size=data["approximation_size"],
+            dataset=data["dataset"],
+            device=data["device"],
+            gp=data["gp"],
+            iterations=int(data["iterations"]),
+            kernel=data["kernel"],
+            learningrate=data["learningrate"],
+            likelyhood=data["likelyhood"],
+            mean=data["mean"],
+            shuffle=bool(data["shuffle"]),
+            seed=int(data["seed"]),
+            lbfgs_max_it=lbfgs_max_it,
+            split=data["data_split"],
+            optimizer=data["optimizer"],
+            standardize=data["data_standartization"],
+        )
+
 
 def run(arguments: RunArguments):
     match arguments.dataset:
@@ -221,7 +224,6 @@ def run(arguments: RunArguments):
             dset = None
 
     if dset is not None:
-
         split_str_list = arguments.split.split(",")
 
         iter = arguments.iterations
@@ -273,10 +275,13 @@ def run(arguments: RunArguments):
 
         match arguments.kernel:
             case "RBF":
+                # to fix output scale, dont wrap in scale kernel, make adj via "trainable_output_scale parameter"
                 kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
                 kernel_str = "RBF"
             case "matern2.5":
-                kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=2.5))
+                kernel = gpytorch.kernels.ScaleKernel(
+                    gpytorch.kernels.MaternKernel(nu=2.5)
+                )
                 kernel_str = "Matern 2.5"
             case "RBFKeops":
                 kernel = gpytorch.kernels.ScaleKernel(RBFKEops())
@@ -298,16 +303,20 @@ def run(arguments: RunArguments):
 
         match arguments.gp:
             case "exact":
-                train_points = train[0][:n,:], train[1][:n]
-                model = ExactGPModel(train_points, test, likelihood, kernel, mean, device)
+                train_points = train[0][:n, :], train[1][:n]
+                model = ExactGPModel(
+                    train_points, test, likelihood, kernel, mean, device
+                )
             case "exactcg":
-                train_points = train[0][:n,:], train[1][:n]
-                model = ExactGPCGModel(train_points, test, likelihood, kernel, mean, device)
+                train_points = train[0][:n, :], train[1][:n]
+                model = ExactGPCGModel(
+                    train_points, test, likelihood, kernel, mean, device
+                )
             case "svgp":
                 if n == train[0].shape[0]:
                     inducing_points = train
                 else:
-                    inducing_points = getInducingPoints(train[0], n)
+                    inducing_points = getInducingPoints(train[0], n, strategy=strategy)
                 model = SparseVariationalGP(
                     inducing_points, train, test, likelihood, kernel, mean, device
                 )
@@ -329,7 +338,9 @@ def run(arguments: RunArguments):
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
                 opt_str = f"Adam, LR: {lr}"
             case "lbfgs":
-                optimizer = torch.optim.LBFGS(model.parameters(), lr=lr, max_iter=lbfgs_it)
+                optimizer = torch.optim.LBFGS(
+                    model.parameters(), lr=lr, max_iter=lbfgs_it
+                )
                 opt_str = f"LBFGS, LR: {lr}, MaxIter: {lbfgs_it}"
             case _:
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -373,7 +384,7 @@ if args.config is not None:
         if os.path.isdir(path):
             dir_list = os.listdir(path)
             for p in dir_list:
-                path_full = path+"/"+p
+                path_full = path + "/" + p
                 arguments = get_from_config(path_full)
                 run(arguments)
         elif os.path.isfile(path):

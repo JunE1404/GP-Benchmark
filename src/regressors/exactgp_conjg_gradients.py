@@ -1,7 +1,8 @@
+import contextlib
+
 import gpytorch
 import torch
 from torch import Tensor
-import contextlib
 
 
 class ExactGPCGModel(gpytorch.models.ExactGP):
@@ -52,14 +53,16 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
     @contextlib.contextmanager
     def _settings_context(self):
         """Context manager that applies CG-for-solves settings."""
-        with gpytorch.settings.fast_computations(
-            covar_root_decomposition=False,
-            log_prob=True,
-            solves=True,
-        ), gpytorch.settings.max_cholesky_size(0), \
-            gpytorch.settings.cg_tolerance(1.0), \
-            gpytorch.settings.eval_cg_tolerance(1e-12), \
-            gpytorch.settings.max_cg_iterations(1000):
+        with (
+            gpytorch.settings.fast_computations(
+                covar_root_decomposition=True,
+                log_prob=True,
+                solves=True,
+            ),
+            gpytorch.settings.max_cholesky_size(0),
+            gpytorch.settings.cg_tolerance(1.0),
+            gpytorch.settings.max_cg_iterations(1024),
+        ):
             yield
 
     def __str__(self) -> str:
@@ -91,6 +94,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
         """
 
         with self._settings_context():
+
             def _compute_loss(mll, x_train, y_train):
                 """Compute the negative marginal log-likelihood loss."""
                 output = self(x_train)
@@ -111,7 +115,6 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
 
             for i in range(iterations):
                 if is_lbfgs:
-
                     loss = optimizer.step(closure)
                 else:
                     optimizer.zero_grad()

@@ -94,7 +94,7 @@ class SparseVariationalGP(ApproximateGP):
         train_dataset = TensorDataset(self.train_data[0], self.train_data[1])
         train_loader = DataLoader(
             train_dataset, batch_size=128, shuffle=True
-        )  # batch size chosen with flag
+        )  # batch size chosen with flag (good value 1024)
 
         mll = gpytorch.mlls.VariationalELBO(
             self.likelihood, self, num_data=self.train_data[1].size(0)
