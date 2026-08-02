@@ -2,7 +2,8 @@ import gpytorch
 import torch
 from torch import Tensor
 import contextlib
-
+from collections.abc import Callable
+from scaffolds import LogDetails
 
 class ExactGPModel(gpytorch.models.ExactGP):
     train_data: tuple[Tensor, Tensor]
@@ -76,7 +77,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer, iterations):
+    def run_training(self, optimizer, iterations, logger: Callable[[LogDetails]]):
         """Train the Exact GP model.
 
         Optimizes kernel hyperparameters and likelihood noise by minimizing
@@ -115,16 +116,12 @@ class ExactGPModel(gpytorch.models.ExactGP):
                     loss.backward()
                     optimizer.step()
 
-                # print(
-                #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-                #    % (
-                #        i + 1,
-                #        iterations,
-                #        loss.item(),
-                #        self.covar_module.base_kernel.lengthscale.item(),
-                #        self.likelihood.noise.item(),
-                #    )
-                # )
+                logdetails = LogDetails(iteration=i,
+                                loss=loss.item(),
+                                lengthscale=self.covar_module.base_kernel.lengthscale.item(),
+                                likelyhood_noise=self.likelihood.noise.item(),
+                            )
+                logger(logdetails)
             torch.cuda.empty_cache()
 
             self.trained = True

@@ -1,0 +1,16 @@
+{
+    "dataset": "wine",
+    "data_split": "0.7,0,0.3",
+    "data_standartization": "y,y,y,y,y,y,y",
+    "device": "cuda",
+    "gp": "exactcg",
+    "kernel": "RBFKeops",
+    "likelyhood": "gaussian",
+    "mean": "constant",
+    "optimizer": "lbfgs",
+    "lbfgs_max_iter": 20,
+    "iterations": 100,
+    "approximation_size": 1024,
+    "seed": 44,
+    "shuffle": true
+}

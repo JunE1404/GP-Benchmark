@@ -3,6 +3,12 @@ import contextlib
 import gpytorch
 import torch
 from torch import Tensor
+from collections.abc import Callable
+from scaffolds import LogDetails
+
+
+class LossNotFiniteError(RuntimeError):
+    """Raised when the training loss becomes non-finite (NaN/Inf)."""
 
 
 class ExactGPCGModel(gpytorch.models.ExactGP):
@@ -60,7 +66,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
                 solves=True,
             ),
             gpytorch.settings.max_cholesky_size(0),
-            gpytorch.settings.cg_tolerance(1.0),
+            gpytorch.settings.cg_tolerance(1),
             gpytorch.settings.max_cg_iterations(1024),
         ):
             yield
@@ -82,7 +88,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer, iterations):
+    def run_training(self, optimizer, iterations, logger: Callable[[LogDetails]]):
         """Train the Exact GP model.
 
         Optimizes kernel hyperparameters and likelihood noise by minimizing
@@ -110,28 +116,31 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
                 """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
                 optimizer.zero_grad()
                 loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                if not torch.isfinite(loss):
+                    raise LossNotFiniteError("Non-finite loss during LBFGS line search")
                 loss.backward()
                 return loss
 
             for i in range(iterations):
                 if is_lbfgs:
-                    loss = optimizer.step(closure)
+                    try:
+                        loss = optimizer.step(closure)
+                    except LossNotFiniteError:
+                        break
                 else:
                     optimizer.zero_grad()
                     loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                    if not torch.isfinite(loss):
+                        break
                     loss.backward()
                     optimizer.step()
 
-                # print(
-                #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-                #    % (
-                #        i + 1,
-                #        iterations,
-                #        loss.item(),
-                #        self.covar_module.base_kernel.lengthscale.item(),
-                #        self.likelihood.noise.item(),
-                #    )
-                # )
+                logdetails = LogDetails(iteration=i,
+                                loss=loss.item(),
+                                lengthscale=self.covar_module.base_kernel.lengthscale.item(),
+                                likelyhood_noise=self.likelihood.noise.item(),
+                            )
+                logger(logdetails)
             torch.cuda.empty_cache()
 
             self.trained = True

@@ -4,14 +4,21 @@ from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution, VariationalStrategy
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
+from collections.abc import Callable
+from scaffolds import LogDetails
+
+from kmeans import getInducingPoints
 
 
 class SparseVariationalGP(ApproximateGP):
     def __init__(
         self,
-        inducing_points,  # instead pass string for strategy (rand, k-means) + number of points n
+        strategy, 
+        strategy_seed,
+        n,
         train_data: tuple[Tensor, Tensor],
         test_data: tuple[Tensor, Tensor],
+        batch_size: int,
         likelihood,
         kernel=None,
         mean_module=None,
@@ -26,6 +33,10 @@ class SparseVariationalGP(ApproximateGP):
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
             kernel: Optional custom kernel; defaults to ScaleKernel(RBFKernel()).
         """
+
+        inducing_points = getInducingPoints(test_data[0], n, strategy=strategy, seed=strategy_seed)
+
+
         variational_distribution = CholeskyVariationalDistribution(
             inducing_points.size(0)
         )
@@ -48,7 +59,8 @@ class SparseVariationalGP(ApproximateGP):
             raise ValueError("No likelyhood set.")
         else:
             self.likelihood = likelihood
-
+        self.batch_size = batch_size
+        print(self.batch_size)
         self.train_data = train_data
         self.test_data = test_data
         self.trained = False
@@ -71,7 +83,7 @@ class SparseVariationalGP(ApproximateGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer, iterations):
+    def run_training(self, optimizer, iterations, logger: Callable[[LogDetails]]):
         """Train the SVGP model using minibatch variational inference.
 
         Optimizes kernel hyperparameters, likelihood noise, inducing point
@@ -93,8 +105,8 @@ class SparseVariationalGP(ApproximateGP):
 
         train_dataset = TensorDataset(self.train_data[0], self.train_data[1])
         train_loader = DataLoader(
-            train_dataset, batch_size=128, shuffle=True
-        )  # batch size chosen with flag (good value 1024)
+            train_dataset, batch_size=self.batch_size, shuffle=True
+        ) 
 
         mll = gpytorch.mlls.VariationalELBO(
             self.likelihood, self, num_data=self.train_data[1].size(0)
@@ -124,16 +136,13 @@ class SparseVariationalGP(ApproximateGP):
                 epoch_loss += loss.item()
 
                 torch.cuda.empty_cache()
-            # print(
-            #    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-            #    % (
-            #        i + 1,
-            #        epochs,
-            #        epoch_loss / len(train_loader),
-            #        self.covar_module.base_kernel.lengthscale.item(),
-            #        self.likelihood.noise.item(),
-            #    )
-            # )
+
+            logdetails = LogDetails(iteration=i,
+                                    loss=epoch_loss / len(train_loader),
+                                    lengthscale=self.covar_module.base_kernel.lengthscale.item(),
+                                    likelyhood_noise=self.likelihood.noise.item(),
+            )
+            logger(logdetails)
 
         self.trained = True
 

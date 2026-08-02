@@ -24,6 +24,8 @@ from regressors.cagp import CAGPModel
 from regressors.exactgp import ExactGPModel
 from regressors.exactgp_conjg_gradients import ExactGPCGModel
 from regressors.svgp import SparseVariationalGP
+from scaffolds import RunArguments, WandBDetails
+from wab import WandBRun
 
 
 def instantiate_all_datasets():
@@ -103,29 +105,13 @@ parser.add_argument("-lit", "--lgbfs_max_it", type=int)
 parser.add_argument("-as", "--approximation_size", type=int)
 parser.add_argument("-i", "--iterations", type=int)
 parser.add_argument("-s", "--seed", type=int)
-parser.add_argument("-r", "--shuffle", action="store_true")  # on/off flag
+parser.add_argument("-r", "--shuffle", action="store_true") 
+parser.add_argument("-bs", "--svgp_batch_size", type=int)
+parser.add_argument("-str", "--svgp_strategy", type=str)
 
 args = parser.parse_args()
 
 
-@dataclass
-class RunArguments:
-    device: str
-    dataset: str
-    split: str
-    standardize: str
-    gp: str
-    kernel: str
-    likelyhood: str
-    mean: str
-    optimizer: str
-    learningrate: float
-    lbfgs_max_it: int
-    approximation_size: int
-    iterations: int
-    seed: int
-    shuffle: bool
-    svgp_strategy: str
 
 
 def get_from_args() -> RunArguments:
@@ -167,6 +153,7 @@ def get_from_args() -> RunArguments:
     s = args.dataset
 
     svgp_strat = args.svgp_strategy
+    batch_size = args.svgp_batch_size
 
     return RunArguments(
         approximation_size=app_size,
@@ -184,17 +171,28 @@ def get_from_args() -> RunArguments:
         split=split_select,
         optimizer=op_select,
         standardize=std_select,
-        svgp_strategy=svgp_strat
+        svgp_strategy=svgp_strat,
+        batch_size=batch_size
     )
 
 
 def get_from_config(path: str):
+    print(path)
     with open(path, "r") as f:
         data = json.load(f)
         if data["optimizer"] == "lbfgs":
             lbfgs_max_it = data["lbfgs_max_iter"]
+            learningrate = 0
         else:
             lbfgs_max_it = None
+            learningrate=data["learningrate"]
+
+        if data["gp"] == "svgp":
+            svgp_strategy=data["svgp_strategy"]
+            batch_size=data["svgp_batch_size"]
+        else:
+            svgp_strategy=""
+            batch_size=0
 
         return RunArguments(
             approximation_size=data["approximation_size"],
@@ -203,7 +201,7 @@ def get_from_config(path: str):
             gp=data["gp"],
             iterations=int(data["iterations"]),
             kernel=data["kernel"],
-            learningrate=data["learningrate"],
+            learningrate=learningrate,
             likelyhood=data["likelyhood"],
             mean=data["mean"],
             shuffle=bool(data["shuffle"]),
@@ -212,7 +210,8 @@ def get_from_config(path: str):
             split=data["data_split"],
             optimizer=data["optimizer"],
             standardize=data["data_standartization"],
-            svgp_strategy=data["svgp_strategy"]
+            svgp_strategy=svgp_strategy,
+            batch_size=batch_size
         )
 
 
@@ -317,12 +316,8 @@ def run(arguments: RunArguments):
                     train_points, test, likelihood, kernel, mean, device
                 )
             case "svgp":
-                if n == train[0].shape[0]:
-                    inducing_points = train
-                else:
-                    inducing_points = getInducingPoints(train[0], n, strategy=arguments.svgp_strategy, seed=seed)
                 model = SparseVariationalGP(
-                    inducing_points, train, test, likelihood, kernel, mean, device
+                    arguments.svgp_strategy,seed, n, train, test,arguments.batch_size, likelihood, kernel, mean, device
                 )
             case "cagp":
                 model = CAGPModel(
@@ -343,18 +338,24 @@ def run(arguments: RunArguments):
                 opt_str = f"Adam, LR: {lr}"
             case "lbfgs":
                 optimizer = torch.optim.LBFGS(
-                    model.parameters(), lr=lr, max_iter=lbfgs_it
+                    model.parameters(),  max_iter=lbfgs_it
                 )
                 opt_str = f"LBFGS, LR: {lr}, MaxIter: {lbfgs_it}"
             case _:
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
                 opt_str = f"Adam, LR: {lr}"
 
-        time_start = time.time()
-        model.run_training(optimizer, iterations=iter)
-        time_end = time.time()
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
+        run_name = str(model)+"_"+str(dset)+"_"+str(seed)+"_"+datetime_str
+        wandb_details = WandBDetails(entity="GP-Bench-Thesis", project="GP Test Runs", name=run_name)
+        wandb_run = WandBRun(wandb_details, arguments)
+        logger = wandb_run.log
+
+        time_start = time.time()
+        model.run_training(optimizer, iterations=iter, logger=logger)
+        time_end = time.time()
+        now = datetime.now()
         start_time_eval = time.time()
         post = model.predict(test[0])
         end_time_eval = time.time()
@@ -377,6 +378,8 @@ def run(arguments: RunArguments):
         }
         print(eval)
 
+        wandb_run.finish()
+
         results_dir = Path(f"results/{str(dset)}/{str(model)}")
         results_dir.mkdir(parents=True, exist_ok=True)
         with open(results_dir / f"{datetime_str}.json", "w") as f:
@@ -391,10 +394,16 @@ if args.config is not None:
             for p in dir_list:
                 path_full = path + "/" + p
                 arguments = get_from_config(path_full)
-                run(arguments)
+                try:
+                    run(arguments)
+                except:
+                    print("Training of "+ path+ " failed")
         elif os.path.isfile(path):
             arguments = get_from_config(path)
-            run(arguments)
+            try:
+                run(arguments)
+            except:
+                print("Training of "+ path+ " failed")
         else:
             pass
 else:

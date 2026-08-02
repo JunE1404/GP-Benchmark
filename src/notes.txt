@@ -65,15 +65,15 @@ Exact Gp exp -> LBFGS
 
 Find way to make signal variance non trainable to fix to constant for experiments
 
-Good results structure with metrics and logs
+Good results structure with metrics and logs  x
 
-logs: all parameters used, git hash etc
+logs: all parameters used, git hash etc x
 
-Log metrics for test and val to wheights and biases after every training iteration /epoch
+Log metrics for test and val to wheights and biases after every training iteration /epoch x
 
 plot coverage intervals (50, 90, 95%)
 
-think about iteration counts + early stopping
+think about iteration counts + early stopping (val split?)
 
 run 5 seeds on wine with each gp for next time
 
