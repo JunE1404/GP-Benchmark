@@ -4,7 +4,7 @@
     "data_standartization": "y,y,y,y,y,y,y",
     "device": "cuda",
     "gp": "cagp",
-    "kernel": "RBF",
+    "kernel": "RBFKeops",
     "likelyhood": "gaussian",
     "mean": "constant",
     "optimizer": "adam",
@@ -12,5 +12,6 @@
     "iterations": 100,
     "approximation_size": 1024,
     "seed": 42,
-    "shuffle": true
+    "shuffle": true,
+    "svgp_strategy": "kmeans"
 }

@@ -3,8 +3,8 @@ import torch
 from gpytorch.likelihoods import Likelihood
 from torch import Tensor
 
-from .additional_sources.gps.computaion_aware import ComputationAwareGP
-from .additional_sources.mlls.comp_aware_elbo import ComputationAwareELBO
+from gpytorch.models import ComputationAwareGP
+from gpytorch.mlls import ComputationAwareELBO
 
 
 class CAGPModel(ComputationAwareGP):

@@ -166,6 +166,8 @@ def get_from_args() -> RunArguments:
 
     s = args.dataset
 
+    svgp_strat = args.svgp_strategy
+
     return RunArguments(
         approximation_size=app_size,
         dataset=s,
@@ -182,6 +184,7 @@ def get_from_args() -> RunArguments:
         split=split_select,
         optimizer=op_select,
         standardize=std_select,
+        svgp_strategy=svgp_strat
     )
 
 
@@ -209,6 +212,7 @@ def get_from_config(path: str):
             split=data["data_split"],
             optimizer=data["optimizer"],
             standardize=data["data_standartization"],
+            svgp_strategy=data["svgp_strategy"]
         )
 
 
@@ -316,7 +320,7 @@ def run(arguments: RunArguments):
                 if n == train[0].shape[0]:
                     inducing_points = train
                 else:
-                    inducing_points = getInducingPoints(train[0], n, strategy=strategy)
+                    inducing_points = getInducingPoints(train[0], n, strategy=arguments.svgp_strategy, seed=seed)
                 model = SparseVariationalGP(
                     inducing_points, train, test, likelihood, kernel, mean, device
                 )
@@ -371,6 +375,7 @@ def run(arguments: RunArguments):
             "git_commit_hash": helpers.get_git_revision_hash(),
             "date": datetime_str,
         }
+        print(eval)
 
         results_dir = Path(f"results/{str(dset)}/{str(model)}")
         results_dir.mkdir(parents=True, exist_ok=True)

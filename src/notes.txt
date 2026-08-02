@@ -34,6 +34,9 @@ Cant run exact for big datasets > for big datasets select random 1024/2048 datap
 
     -> run on wine see results x
 
+
+Switch to CAGP branch to make sure KeOps works properly x (Needed V3, since "WIP", maybe pin to commit?)
+
 -------------------------------------------------------------------
 
 Plot different inducing point numbers against each other !
@@ -57,8 +60,6 @@ Implement Exact from scratch for understanding
 
 Use Notebook for visual debugging (on 1D)
 
-
-Switch to CAGP branch to make sure KeOps works properly
 
 Exact Gp exp -> LBFGS
 
