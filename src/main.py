@@ -338,9 +338,9 @@ def run(arguments: RunArguments):
                 opt_str = f"Adam, LR: {lr}"
             case "lbfgs":
                 optimizer = torch.optim.LBFGS(
-                    model.parameters(),  max_iter=lbfgs_it
+                    model.parameters(),  max_iter=lbfgs_it, line_search_fn="strong_wolfe"
                 )
-                opt_str = f"LBFGS, LR: {lr}, MaxIter: {lbfgs_it}"
+                opt_str = f"LBFGS, MaxIter: {lbfgs_it}"
             case _:
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
                 opt_str = f"Adam, LR: {lr}"

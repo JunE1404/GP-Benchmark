@@ -61,7 +61,7 @@ Implement Exact from scratch for understanding
 Use Notebook for visual debugging (on 1D)
 
 
-Exact Gp exp -> LBFGS
+Exact Gp exp -> LBFGS x
 
 Find way to make signal variance non trainable to fix to constant for experiments
 
@@ -75,7 +75,7 @@ plot coverage intervals (50, 90, 95%)
 
 think about iteration counts + early stopping (val split?)
 
-run 5 seeds on wine with each gp for next time
+run 5 seeds on wine with each gp for next time x
 
 ----------------------------------------
 python main.py --split "0.7,0,0.3" --standardize "y,y,y,y,y,y,y" --gp "exact" --kernel "RBF" --likelyhood "gaussian" --mean "constant" --optimizer "adam" --learningrate 0.1 --iterations 100 --shuffle --seed 42 --device "cuda"
