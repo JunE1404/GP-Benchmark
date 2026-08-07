@@ -249,7 +249,7 @@ def run(arguments: RunArguments):
         shuffle = arguments.shuffle
         seed = arguments.seed
 
-        (train, val, test), (y_mean, y_std) = dset.get_data_split(
+        (train, val, test), (y_mean, y_std) = dset.get_data_split( #always standard features, dont stand targets for val and test, but report metrics in normal space
             split_fractions=split_fractions,
             standardize_data_splits=st_split,
             shuffle_data=shuffle,
@@ -287,7 +287,7 @@ def run(arguments: RunArguments):
                 )
                 kernel_str = "Matern 2.5"
             case "RBFKeops":
-                kernel = gpytorch.kernels.ScaleKernel(RBFKEops())
+                kernel = gpytorch.kernels.ScaleKernel(RBFKEops(ard_num_dims=train.shape[1])) # set lengthscale constraint 10e-6
                 kernel_str = "RBF Keops"
             case "matern2.5Keops":
                 kernel = gpytorch.kernels.ScaleKernel(MaternKeops(nu=2.5))

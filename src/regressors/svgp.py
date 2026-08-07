@@ -35,7 +35,7 @@ class SparseVariationalGP(ApproximateGP):
         """
 
         inducing_points = getInducingPoints(test_data[0], n, strategy=strategy, seed=strategy_seed)
-
+        self.inducing_point_strat = strategy
 
         variational_distribution = CholeskyVariationalDistribution(
             inducing_points.size(0)
@@ -168,4 +168,4 @@ class SparseVariationalGP(ApproximateGP):
         return posterior
 
     def __str__(self) -> str:
-        return "SVGP"
+        return f"SVGP_inducing_init_{self.inducing_point_strat}"
