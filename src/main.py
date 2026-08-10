@@ -298,7 +298,7 @@ def run(arguments: RunArguments):
                 )
                 kernel_str = "Matern 2.5"
             case "RBFKeops":
-                kernel = gpytorch.kernels.ScaleKernel(RBFKEops(ard_num_dims=train.shape[1])) # set lengthscale constraint 10e-6
+                kernel = gpytorch.kernels.ScaleKernel(RBFKEops(ard_num_dims=train[1].shape[1])) # set lengthscale constraint 10e-6
                 kernel_str = "RBF Keops"
             case "matern2.5Keops":
                 kernel = gpytorch.kernels.ScaleKernel(MaternKeops(nu=2.5))
