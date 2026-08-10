@@ -225,6 +225,7 @@ def run(arguments: RunArguments):
             dset = UCIWineQuality()
         case _:
             dset = None
+    print(str(dset))
 
     if dset is not None:
         split_str_list = arguments.split.split(",")
@@ -400,6 +401,7 @@ if args.config is not None:
                     print("Training of "+ path+ " failed")
         elif os.path.isfile(path):
             arguments = get_from_config(path)
+            print(arguments)
             try:
                 run(arguments)
             except:
