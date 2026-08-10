@@ -3,6 +3,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=4G
 #SBATCH --nodes=1
+#SBATCH --partition=2080-galvani
 #SBATCH --time=0:15:00
 #SBATCH -o /mnt/lustre/work/hennig/hmx114/logs/%j_%x.out
 
