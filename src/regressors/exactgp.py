@@ -118,7 +118,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
                 logdetails = LogDetails(iteration=i,
                                 loss=loss.item(),
-                                lengthscale=self.covar_module.base_kernel.lengthscale.item(),
+                                lengthscale=self.covar_module.base_kernel.lengthscale.norm().item(),
                                 likelyhood_noise=self.likelihood.noise.item(),
                             )
                 logger(logdetails)

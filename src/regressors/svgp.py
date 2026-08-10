@@ -139,7 +139,7 @@ class SparseVariationalGP(ApproximateGP):
 
             logdetails = LogDetails(iteration=i,
                                     loss=epoch_loss / len(train_loader),
-                                    lengthscale=self.covar_module.base_kernel.lengthscale.item(),
+                                    lengthscale=self.covar_module.base_kernel.lengthscale.norm().item(),
                                     likelyhood_noise=self.likelihood.noise.item(),
             )
             logger(logdetails)

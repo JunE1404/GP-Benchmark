@@ -290,7 +290,10 @@ def run(arguments: RunArguments):
         match arguments.kernel:
             case "RBF":
                 # to fix output scale, dont wrap in scale kernel, make adj via "trainable_output_scale parameter"
-                kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+                kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel(
+                        ard_num_dims=train[0].shape[1],
+                        lengthscale_constraint=gpytorch.constraints.GreaterThan(10e-6),
+                    ))
                 kernel_str = "RBF"
             case "matern2.5":
                 kernel = gpytorch.kernels.ScaleKernel(
@@ -298,7 +301,12 @@ def run(arguments: RunArguments):
                 )
                 kernel_str = "Matern 2.5"
             case "RBFKeops":
-                kernel = gpytorch.kernels.ScaleKernel(RBFKEops(ard_num_dims=train[1].shape[1])) # set lengthscale constraint 10e-6
+                kernel = gpytorch.kernels.ScaleKernel(
+                    RBFKEops(
+                        ard_num_dims=train[0].shape[1],
+                        lengthscale_constraint=gpytorch.constraints.GreaterThan(10e-6),
+                    )
+                )
                 kernel_str = "RBF Keops"
             case "matern2.5Keops":
                 kernel = gpytorch.kernels.ScaleKernel(MaternKeops(nu=2.5))
@@ -420,12 +428,12 @@ if args.config is not None:
                     print("Training of "+ path+ " failed")
         elif os.path.isfile(path):
             arguments = get_from_config(path)
-            print(arguments)
-            try:
-                run(arguments)
-            except Exception as e:
-                print("Training of "+ path+ " failed")
-                print(repr(e)) 
+            run(arguments)
+            #try:
+            #    run(arguments)
+            #except Exception as e:
+            #    print("Training of "+ path+ " failed")
+            #    print(repr(e)) 
         else:
             pass
 else:
