@@ -423,8 +423,9 @@ if args.config is not None:
             print(arguments)
             try:
                 run(arguments)
-            except:
+            except Exception as e:
                 print("Training of "+ path+ " failed")
+                print(repr(e)) 
         else:
             pass
 else:
