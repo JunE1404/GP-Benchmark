@@ -238,6 +238,7 @@ def run(arguments: RunArguments):
             float(split_str_list[2]),
         )
         split_fractions = (split_train, split_val, split_test)
+        print(split_fractions)
 
         std_split_str_list = arguments.standardize.split(",")
         std_split_bool_list = [e == "y" for e in std_split_str_list]
@@ -250,6 +251,8 @@ def run(arguments: RunArguments):
         shuffle = arguments.shuffle
         seed = arguments.seed
 
+        print(shuffle, seed)
+
         (train, val, test), (y_mean, y_std) = dset.get_data_split( #always standard features, dont stand targets for val and test, but report metrics in normal space
             split_fractions=split_fractions,
             standardize_data_splits=st_split,
@@ -258,9 +261,12 @@ def run(arguments: RunArguments):
         )
 
         device = arguments.device
+        print(device)
 
         lr = arguments.learningrate
         lbfgs_it = arguments.lbfgs_max_it
+
+        print(lr)
 
         n = arguments.approximation_size
         if n is None:
@@ -269,6 +275,8 @@ def run(arguments: RunArguments):
             if n > train[0].shape[0]:
                 n = train[0].shape[0]
 
+        print(n)
+
         match arguments.likelyhood:
             case "gaussian":
                 likelihood = gpytorch.likelihoods.GaussianLikelihood()
@@ -276,6 +284,8 @@ def run(arguments: RunArguments):
             case _:
                 likelihood = gpytorch.likelihoods.GaussianLikelihood()
                 ll_str = "Gaussian"
+
+        print(ll_str)
 
         match arguments.kernel:
             case "RBF":
@@ -297,6 +307,8 @@ def run(arguments: RunArguments):
                 kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
                 kernel_str = "RBF"
 
+        print(kernel_str)
+
         match arguments.mean:
             case "constant":
                 mean = gpytorch.means.ConstantMean()
@@ -304,6 +316,8 @@ def run(arguments: RunArguments):
             case _:
                 mean = gpytorch.means.ConstantMean()
                 mean_str = "Constant Mean"
+
+        print(mean_str)
 
         match arguments.gp:
             case "exact":
@@ -333,6 +347,8 @@ def run(arguments: RunArguments):
             case _:
                 model = ExactGPModel(train, test, likelihood, kernel, mean, device)
 
+        print(str(model))
+
         match arguments.optimizer:
             case "adam":
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -346,10 +362,13 @@ def run(arguments: RunArguments):
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
                 opt_str = f"Adam, LR: {lr}"
 
+        print(opt_str)
+
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
         run_name = str(model)+"_"+str(dset)+"_"+str(seed)+"_"+datetime_str
         wandb_details = WandBDetails(entity="GP-Bench-Thesis", project="GP Test Runs", name=run_name)
+        print(wandb_details)
         wandb_run = WandBRun(wandb_details, arguments)
         logger = wandb_run.log
 
