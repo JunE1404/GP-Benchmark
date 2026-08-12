@@ -1,3 +1,6 @@
+import contextlib
+import math
+
 import gpytorch
 import torch
 from gpytorch.likelihoods import Likelihood
@@ -7,6 +10,48 @@ from gpytorch.models import ComputationAwareGP
 from gpytorch.mlls import ComputationAwareELBO
 from collections.abc import Callable
 from scaffolds import LogDetails
+
+
+def _patch_keops_covar_funcs():
+    """Add diag=True support to the KeOps kernel covar funcs.
+
+    The computation-aware ELBO takes the diagonal of the lazy kernel operator
+    (prior variance); with the lazy KeOps path active, the covar func would
+    return a LazyTensor that to_dense() cannot materialize. diag=True arrives
+    via kwargs and is handled elementwise on the plain tensors instead.
+    """
+
+    from gpytorch.kernels.keops import matern_kernel, rbf_kernel
+
+    _orig_rbf = rbf_kernel._covar_func
+
+    def _rbf_covar_func(x1, x2, diag=False, **params):
+        if diag:
+            return (-((x1 - x2) ** 2).sum(-1) / 2).exp().unsqueeze(-1)
+        return _orig_rbf(x1, x2, **params)
+
+    _orig_matern = matern_kernel._covar_func
+
+    def _matern_covar_func(x1, x2, nu=2.5, diag=False, **params):
+        if diag:
+            sq_distance = ((x1 - x2) ** 2).sum(-1)
+            distance = (sq_distance + 1e-20).sqrt()
+            exp_component = (-math.sqrt(nu * 2) * distance).exp()
+            if nu == 0.5:
+                constant_component = 1
+            elif nu == 1.5:
+                constant_component = (math.sqrt(3) * distance) + 1
+            elif nu == 2.5:
+                constant_component = (math.sqrt(5) * distance) + (1 + 5.0 / 3.0 * sq_distance)
+            return (constant_component * exp_component).unsqueeze(-1)
+        return _orig_matern(x1, x2, nu=nu, **params)
+
+    rbf_kernel._covar_func = _rbf_covar_func
+    matern_kernel._covar_func = _matern_covar_func
+
+
+_patch_keops_covar_funcs()
+#Credit AI Agent, Deepseek V4-Flash 
 
 class CAGPModel(ComputationAwareGP):
     train_data: tuple[Tensor, Tensor]
@@ -64,6 +109,12 @@ class CAGPModel(ComputationAwareGP):
     def __str__(self) -> str:
         return "CAGP"
 
+    @contextlib.contextmanager
+    def _settings_context(self):
+        """Context manager that forces the lazy KeOps kernel path."""
+        with gpytorch.settings.max_cholesky_size(0):
+            yield
+
     def forward(self, x):
         """Compute the prior/posterior GP distribution at input points.
 
@@ -89,43 +140,45 @@ class CAGPModel(ComputationAwareGP):
             iterations: Number of optimization iterations.
         """
 
-        def _compute_loss(mll, x_train, y_train):
-            """Compute the negative marginal log-likelihood loss."""
-            output = self(x_train)
-            return -mll(output, y_train).mean()
+        with self._settings_context():
 
-        self.train()
-        self.likelihood.train()
-        mll = ComputationAwareELBO(self.likelihood, self)
+            def _compute_loss(mll, x_train, y_train):
+                """Compute the negative marginal log-likelihood loss."""
+                output = self(x_train)
+                return -mll(output, y_train).mean()
 
-        is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
+            self.train()
+            self.likelihood.train()
+            mll = ComputationAwareELBO(self.likelihood, self)
 
-        for i in range(iterations):
-            if is_lbfgs:
+            is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
 
-                def closure():
-                    """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
+            for i in range(iterations):
+                if is_lbfgs:
+
+                    def closure():
+                        """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
+                        optimizer.zero_grad()
+                        loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
+                        loss.backward()
+                        return loss
+
+                    loss = optimizer.step(closure)
+                else:
                     optimizer.zero_grad()
                     loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
                     loss.backward()
-                    return loss
+                    optimizer.step()
 
-                loss = optimizer.step(closure)
-            else:
-                optimizer.zero_grad()
-                loss = _compute_loss(mll, self.train_data[0], self.train_data[1])
-                loss.backward()
-                optimizer.step()
+                logdetails = LogDetails(iteration=i,
+                                loss=loss.item(),
+                                lengthscale=self.covar_module.base_kernel.lengthscale.norm().item(),
+                                likelyhood_noise=self.likelihood.noise.item(),
+                            )
+                logger(logdetails)
+                torch.cuda.empty_cache()
 
-            logdetails = LogDetails(iteration=i,
-                            loss=loss.item(),
-                            lengthscale=self.covar_module.base_kernel.lengthscale.norm().item(),
-                            likelyhood_noise=self.likelihood.noise.item(),
-                        )
-            logger(logdetails)
-            torch.cuda.empty_cache()
-
-        self.trained = True
+            self.trained = True
 
     def predict(self, x):
         """Get the posterior distribution over test points after training.
@@ -142,8 +195,9 @@ class CAGPModel(ComputationAwareGP):
             )
         if next(self.parameters()).is_cuda:
             x = x.cuda()
-        self.eval()
-        self.likelihood.eval()
-        with torch.no_grad():
-            posterior = self.likelihood(self(x))
-        return posterior
+        with self._settings_context():
+            self.eval()
+            self.likelihood.eval()
+            with torch.no_grad():
+                posterior = self.likelihood(self(x))
+            return posterior

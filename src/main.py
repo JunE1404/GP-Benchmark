@@ -18,6 +18,7 @@ import helpers
 from datasets.regression_dataset import RegressionDataset
 from datasets.synthetic_simple import SimpleSyntheticDataset
 from datasets.uci_parkinsons import UCIParkinsonsTelemonitoring
+from datasets.uci_proteins import UCIProtein
 from datasets.uci_wine import UCIWineQuality
 from kmeans import getInducingPoints
 from regressors.cagp import CAGPModel
@@ -223,6 +224,8 @@ def run(arguments: RunArguments):
             dset = UCIParkinsonsTelemonitoring()
         case "wine":
             dset = UCIWineQuality()
+        case "protein":
+            dset = UCIProtein()
         case _:
             dset = None
     print(str(dset))
@@ -416,6 +419,7 @@ def run(arguments: RunArguments):
 
 if args.config is not None:
     path = args.config
+    print(path)
     if os.path.exists(path):
         if os.path.isdir(path):
             dir_list = os.listdir(path)
@@ -428,6 +432,7 @@ if args.config is not None:
                     print("Training of "+ path+ " failed")
         elif os.path.isfile(path):
             arguments = get_from_config(path)
+            print(arguments)
             run(arguments)
             #try:
             #    run(arguments)

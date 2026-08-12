@@ -35,7 +35,22 @@ Cant run exact for big datasets > for big datasets select random 1024/2048 datap
     -> run on wine see results x
 
 
-Switch to CAGP branch to make sure KeOps works properly x (Needed V3, since "WIP", maybe pin to commit?)
+Switch to CAGP branch to make sure KeOps works properly x (Needed V3, since "WIP", maybe pin to commit?) x 
+
+Good results structure with metrics and logs  x
+
+logs: all parameters used, git hash etc x
+
+Log metrics for test and val to wheights and biases after every training iteration /epoch x
+
+
+Exact Gp exp -> LBFGS x
+
+fix logging for multiple lengthscale outputs, plot L2 norm? x
+
+run 5 seeds on wine with each gp for next time x
+
+plot scale parameter x
 
 -------------------------------------------------------------------
 
@@ -60,28 +75,14 @@ Implement Exact from scratch for understanding
 
 Use Notebook for visual debugging (on 1D)
 
-
-Exact Gp exp -> LBFGS x
-
 Find way to make signal variance non trainable to fix to constant for experiments and log in name / log details
-
-Good results structure with metrics and logs  x
-
-logs: all parameters used, git hash etc x
-
-Log metrics for test and val to wheights and biases after every training iteration /epoch x
 
 plot coverage intervals (50, 90, 95%)
 
 think about iteration counts + early stopping (val split?)
 
-run 5 seeds on wine with each gp for next time x
 
 log all differen metrics on wandb (nll, rmse, intervals, val loss)
-
-fix logging for multiple lengthscale outputs, plot L2 norm?
-
-plot scale parameter
 
 test cagp on large dataset soon
 
