@@ -8,6 +8,7 @@ from collections.abc import Callable
 from scaffolds import LogDetails
 
 from kmeans import getInducingPoints
+from helpers import evaluate_regression
 
 
 class SparseVariationalGP(ApproximateGP):
@@ -18,6 +19,7 @@ class SparseVariationalGP(ApproximateGP):
         n,
         train_data: tuple[Tensor, Tensor],
         test_data: tuple[Tensor, Tensor],
+        val_data: tuple[Tensor, Tensor],
         batch_size: int,
         likelihood,
         kernel=None,
@@ -30,11 +32,12 @@ class SparseVariationalGP(ApproximateGP):
             inducing_points: Initial inducing point locations, shape (m, n_features).
             train_data: Tuple of (train_features, train_targets).
             test_data: Tuple of (test_features, test_targets).
+            val_data: Tuple of (val_features, val_targets).
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
             kernel: Optional custom kernel; defaults to ScaleKernel(RBFKernel()).
         """
 
-        inducing_points = getInducingPoints(test_data[0], n, strategy=strategy, seed=strategy_seed)
+        inducing_points = getInducingPoints(train_data[0], n, strategy=strategy, seed=strategy_seed)
         self.inducing_point_strat = strategy
 
         variational_distribution = CholeskyVariationalDistribution(
@@ -60,15 +63,16 @@ class SparseVariationalGP(ApproximateGP):
         else:
             self.likelihood = likelihood
         self.batch_size = batch_size
-        print(self.batch_size)
         self.train_data = train_data
         self.test_data = test_data
+        self.val_data = val_data
         self.trained = False
         if device == "cuda" and torch.cuda.is_available():
             self.to("cuda")
             self.likelihood = likelihood.cuda()
             self.train_data = (train_data[0].cuda(), train_data[1].cuda())
             self.test_data = (test_data[0].cuda(), test_data[1].cuda())
+            self.val_data = (val_data[0].cuda(), val_data[1].cuda())
 
     def forward(self, x):
         """Compute the prior GP distribution at input points.
@@ -83,7 +87,7 @@ class SparseVariationalGP(ApproximateGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer, iterations, logger: Callable[[LogDetails]]):
+    def run_training(self, optimizer, y_mean, y_std, standardize_val_targets, iterations, logger: Callable[[LogDetails]]):
         """Train the SVGP model using minibatch variational inference.
 
         Optimizes kernel hyperparameters, likelihood noise, inducing point
@@ -137,12 +141,36 @@ class SparseVariationalGP(ApproximateGP):
 
                 torch.cuda.empty_cache()
 
+            x = self.val_data[0]
+            if next(self.parameters()).is_cuda:
+                x = x.cuda()
+            self.eval()
+            self.likelihood.eval()
+            with torch.no_grad():
+                posterior = self.likelihood(self(x))
+
+            pst_t = posterior.mean.detach().cpu()
+            pred_std = posterior.stddev.detach().cpu()
+
+            MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.val_data[1], y_mean, y_std, standardize_val_targets)
+
             logdetails = LogDetails(iteration=i,
                                     loss=epoch_loss / len(train_loader),
-                                    lengthscale=self.covar_module.base_kernel.lengthscale.norm().item(),
+                                    lengthscale=LScale,
                                     likelyhood_noise=self.likelihood.noise.item(),
+                                    val_MAE=MAE,
+                                    val_NLL=NLL,
+                                    val_PICP=PICP,
+                                    val_RMSE=RMSE,
+                                    val_pred_mean=pst_t.mean().item(),
+                                    val_pred_median=pst_t.median().item(),
+                                    val_pred_q05=torch.quantile(pst_t, 0.05).item(),
+                                    val_pred_q95=torch.quantile(pst_t, 0.95).item(),
+                                    val_pred_std_mean=pred_std.mean().item()
             )
             logger(logdetails)
+            self.train()
+            self.likelihood.train()
 
         self.trained = True
 

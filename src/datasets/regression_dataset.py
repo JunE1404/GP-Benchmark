@@ -171,18 +171,6 @@ class RegressionDataset:
         Returns:
             Tuple of ((feature_means, feature_stds), (target_mean, target_std)).
         """
-        train_X_means = torch.zeros(self.features.shape[1])
-        train_X_stds = torch.ones(self.features.shape[1])
-
-        n_one_hot = (
-            self.features.shape[1] - (np.array(self.feature_types) == "cat").sum()
-        )
-        features_continuous = self.features[:, :-n_one_hot]
-        train_X_means[:-n_one_hot] = mean(features_continuous, dim=0)
-        train_X_stds[:-n_one_hot] = std(features_continuous, dim=0)
-
-        # Fix stand of one hot features & re-check cont & cat order
-
         x_means = mean(i_features, dim=0)
         x_stds = std(i_features, dim=0)
         y_mean = mean(i_targets, dim=0)

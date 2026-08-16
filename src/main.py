@@ -25,7 +25,7 @@ from regressors.cagp import CAGPModel
 from regressors.exactgp import ExactGPModel
 from regressors.exactgp_conjg_gradients import ExactGPCGModel
 from regressors.svgp import SparseVariationalGP
-from scaffolds import RunArguments, WandBDetails
+from scaffolds import RunArguments, WandBDetails, RunSummary
 from wab import WandBRun
 
 
@@ -43,43 +43,6 @@ def instantiate_all_datasets():
 
     return datasets
 
-
-def evaluate_regression(predictions, targets, y_mean=None, y_std=None):
-    """Compute regression metrics from predictions and targets.
-
-    Args:
-        predictions: Distribution or tuple (means, stds).
-        targets: Ground-truth target values.
-        y_mean, y_std: Optional standardization stats to invert.
-
-    Returns:
-        dict with MAE, NLL, PICP, RMSE (as Python floats).
-    """
-    if hasattr(predictions, "mean"):
-        means, stds = predictions.mean, predictions.stddev
-    else:
-        means, stds = predictions
-
-    means = means.cpu()
-    targets = targets.cpu()
-    stds = stds.cpu()
-
-    # Force, assume that data is standardized
-    if y_mean is not None and y_std is not None:
-        means = means * y_std + y_mean
-        stds = stds * y_std
-        targets = targets * y_std + y_mean
-
-    mae = torch.mean(torch.abs(means - targets)).item()
-    nll = -torch.distributions.Normal(means, stds).log_prob(targets).mean().item()
-
-    lower = means - 1.96 * stds
-    upper = means + 1.96 * stds
-    picp = ((targets >= lower) & (targets <= upper)).float().mean().item()
-
-    rmse = torch.sqrt(torch.mean((targets - means) ** 2)).item()
-
-    return {"MAE": mae, "NLL": nll, "PICP": picp, "RMSE": rmse}
 
 
 # helpers.check_repo_clean()
@@ -109,9 +72,20 @@ parser.add_argument("-s", "--seed", type=int)
 parser.add_argument("-r", "--shuffle", action="store_true") 
 parser.add_argument("-bs", "--svgp_batch_size", type=int)
 parser.add_argument("-str", "--svgp_strategy", type=str)
+parser.add_argument("-os", "--trainable_output_scale", action="store_true")
 
 args = parser.parse_args()
 
+
+def seed_check(seed, dset, gptype):
+    p = Path(f"results/{str(dset)}/{str(gptype)}")
+    for x in os.listdir(p):
+        if x.endswith(".json"):
+            with open(Path(p, x)) as f:
+                data = json.load(f)
+                if data["seed"] == seed:
+                    return False
+    return True
 
 
 
@@ -155,6 +129,7 @@ def get_from_args() -> RunArguments:
 
     svgp_strat = args.svgp_strategy
     batch_size = args.svgp_batch_size
+    train_sig_var = args.trainable_output_scale
 
     return RunArguments(
         approximation_size=app_size,
@@ -173,12 +148,12 @@ def get_from_args() -> RunArguments:
         optimizer=op_select,
         standardize=std_select,
         svgp_strategy=svgp_strat,
-        batch_size=batch_size
+        batch_size=batch_size,
+        train_signal_variance=train_sig_var
     )
 
 
 def get_from_config(path: str):
-    print(path)
     with open(path, "r") as f:
         data = json.load(f)
         if data["optimizer"] == "lbfgs":
@@ -212,7 +187,8 @@ def get_from_config(path: str):
             optimizer=data["optimizer"],
             standardize=data["data_standartization"],
             svgp_strategy=svgp_strategy,
-            batch_size=batch_size
+            batch_size=batch_size,
+            train_signal_variance=data["trainable_output_scale"]
         )
 
 
@@ -228,7 +204,7 @@ def run(arguments: RunArguments):
             dset = UCIProtein()
         case _:
             dset = None
-    print(str(dset))
+    print(f"Dataset: {str(dset)}")
 
     if dset is not None:
         split_str_list = arguments.split.split(",")
@@ -251,10 +227,13 @@ def run(arguments: RunArguments):
             (std_split_bool_list[4], std_split_bool_list[5]),
         )
 
+        standardize_val_targets = st_split[1][1]
+        standardize_test_targets = st_split[2][1]
+
         shuffle = arguments.shuffle
         seed = arguments.seed
 
-        print(shuffle, seed)
+        print(f"Shuffle data?: {shuffle}, Seed: {seed}")
 
         (train, val, test), (y_mean, y_std) = dset.get_data_split( #always standard features, dont stand targets for val and test, but report metrics in normal space
             split_fractions=split_fractions,
@@ -264,12 +243,12 @@ def run(arguments: RunArguments):
         )
 
         device = arguments.device
-        print(device)
+        print(f"Device: {device}")
 
         lr = arguments.learningrate
         lbfgs_it = arguments.lbfgs_max_it
 
-        print(lr)
+        print(f"Learningrate: {lr}")
 
         n = arguments.approximation_size
         if n is None:
@@ -278,7 +257,7 @@ def run(arguments: RunArguments):
             if n > train[0].shape[0]:
                 n = train[0].shape[0]
 
-        print(n)
+        print(f"Approximation size: {n}")
 
         match arguments.likelyhood:
             case "gaussian":
@@ -288,23 +267,29 @@ def run(arguments: RunArguments):
                 likelihood = gpytorch.likelihoods.GaussianLikelihood()
                 ll_str = "Gaussian"
 
-        print(ll_str)
+        print(f"Likelihood: {ll_str}")
+
+        def kernelWrap(k: gpytorch.kernel.Kernel):
+            if arguments.train_signal_variance:
+                return gpytorch.kernels.ScaleKernel(k)
+            else:
+                return k
 
         match arguments.kernel:
             case "RBF":
                 # to fix output scale, dont wrap in scale kernel, make adj via "trainable_output_scale parameter"
-                kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel(
+                kernel = kernelWrap(gpytorch.kernels.RBFKernel(
                         ard_num_dims=train[0].shape[1],
                         lengthscale_constraint=gpytorch.constraints.GreaterThan(10e-6),
                     ))
                 kernel_str = "RBF"
             case "matern2.5":
-                kernel = gpytorch.kernels.ScaleKernel(
+                kernel = kernelWrap(
                     gpytorch.kernels.MaternKernel(nu=2.5)
                 )
                 kernel_str = "Matern 2.5"
             case "RBFKeops":
-                kernel = gpytorch.kernels.ScaleKernel(
+                kernel = kernelWrap(
                     RBFKEops(
                         ard_num_dims=train[0].shape[1],
                         lengthscale_constraint=gpytorch.constraints.GreaterThan(10e-6),
@@ -312,13 +297,14 @@ def run(arguments: RunArguments):
                 )
                 kernel_str = "RBF Keops"
             case "matern2.5Keops":
-                kernel = gpytorch.kernels.ScaleKernel(MaternKeops(nu=2.5))
+                kernel = kernelWrap(MaternKeops(nu=2.5))
                 kernel_str = "Matern 2.5 Keops"
             case _:
-                kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+                kernel = kernelWrap(gpytorch.kernels.RBFKernel())
                 kernel_str = "RBF"
 
-        print(kernel_str)
+        str_vartrained = ", Trainable output scale" if (arguments.train_signal_variance) else ""
+        print(f"Kernel: {kernel_str}{str_vartrained}")
 
         match arguments.mean:
             case "constant":
@@ -328,27 +314,28 @@ def run(arguments: RunArguments):
                 mean = gpytorch.means.ConstantMean()
                 mean_str = "Constant Mean"
 
-        print(mean_str)
+        print(f"Mean: {mean_str}")
 
         match arguments.gp:
             case "exact":
                 train_points = train[0][:n, :], train[1][:n]
                 model = ExactGPModel(
-                    train_points, test, likelihood, kernel, mean, device
+                    train_points, test, val, likelihood, kernel, mean, device
                 )
             case "exactcg":
                 train_points = train[0][:n, :], train[1][:n]
                 model = ExactGPCGModel(
-                    train_points, test, likelihood, kernel, mean, device
+                    train_points, test, val, likelihood, kernel, mean, device
                 )
             case "svgp":
                 model = SparseVariationalGP(
-                    arguments.svgp_strategy,seed, n, train, test,arguments.batch_size, likelihood, kernel, mean, device
+                    arguments.svgp_strategy,seed, n, train, test, val,arguments.batch_size, likelihood, kernel, mean, device
                 )
             case "cagp":
                 model = CAGPModel(
                     train,
                     test,
+                    val,
                     n,
                     likelihood,
                     kernel=kernel,
@@ -356,14 +343,14 @@ def run(arguments: RunArguments):
                     device=device,
                 )
             case _:
-                model = ExactGPModel(train, test, likelihood, kernel, mean, device)
+                model = ExactGPModel(train, test, val, likelihood, kernel, mean, device)
 
-        print(str(model))
+        print(f"GP Model: {str(model)}")
 
         match arguments.optimizer:
             case "adam":
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-                opt_str = f"Adam, LR: {lr}"
+                opt_str = f"Adam"
             case "lbfgs":
                 optimizer = torch.optim.LBFGS(
                     model.parameters(),  max_iter=lbfgs_it, line_search_fn="strong_wolfe"
@@ -371,49 +358,65 @@ def run(arguments: RunArguments):
                 opt_str = f"LBFGS, MaxIter: {lbfgs_it}"
             case _:
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-                opt_str = f"Adam, LR: {lr}"
+                opt_str = f"Adam"
 
-        print(opt_str)
+        print(f"Optimizer: {opt_str}")
 
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
-        run_name = str(model)+"_"+str(dset)+"_"+str(seed)+"_"+datetime_str
+
+        seed_ok = seed_check(seed, dset, model)
+        if not seed_ok:
+            print(f"Seed {seed} was used already used for {str(dset)} with {str(model)}")
+            return
+
+        res_path = Path(f"results/{str(dset)}/{str(model)}")
+        log_path = Path(res_path, "logs")
+        res_file_name = f"{kernel_str}_{opt_str}_{seed}_{datetime_str}"
+        log_file_path = Path(log_path, f"{res_file_name}.csv")
+        log_path.mkdir(parents=True, exist_ok=True)
+
+        run_name = f"{str(model)}_{str(dset)}_{kernel_str}_{opt_str}_{str(seed)}_{datetime_str}"
         wandb_details = WandBDetails(entity="GP-Bench-Thesis", project="GP Test Runs", name=run_name)
-        print(wandb_details)
-        wandb_run = WandBRun(wandb_details, arguments)
+        wandb_run = WandBRun(wandb_details, arguments, log_file_path)
         logger = wandb_run.log
 
         time_start = time.time()
-        model.run_training(optimizer, iterations=iter, logger=logger)
+        model.run_training(optimizer,y_mean, y_std,standardize_val_targets, iterations=iter, logger=logger)
         time_end = time.time()
-        now = datetime.now()
         start_time_eval = time.time()
         post = model.predict(test[0])
         end_time_eval = time.time()
+        ev_data = helpers.evaluate_regression(model,post, test[1], y_mean, y_std, standardize_test_targets)
+        t_time = time_end - time_start
+        e_time = end_time_eval - start_time_eval
         eval = {
             "dataset": str(dset),
             "approximation_size": n,
             "modelType": str(model),
             "kernel": kernel_str,
+            "trained_outpu_scale": arguments.train_signal_variance,
             "likelihood": ll_str,
             "mean": mean_str,
             "optimizer": opt_str,
+            "learningrate": lr,
             "shuffledData": shuffle,
             "seed": seed,
-            "evalData": evaluate_regression(post, test[1], y_mean, y_std),
-            "trainingTime": time_end - time_start,
-            "evalTime": end_time_eval - start_time_eval,
+            "evalData": {"MAE": ev_data[0], "NLL":ev_data[1], "PICP":ev_data[2], "RMSE":ev_data[3], "Lengthscale":ev_data[4]},
+            "trainingTime": t_time,
+            "evalTime": e_time,
             "device": device,
             "git_commit_hash": helpers.get_git_revision_hash(),
             "date": datetime_str,
         }
-        print(eval)
 
+        summary = RunSummary(MAE=ev_data[0], NLL=ev_data[1], PICP=ev_data[2], RMSE=ev_data[3], training_time=t_time, eval_time=e_time)
+        
+        wandb_run.summarize(summary)
         wandb_run.finish()
 
-        results_dir = Path(f"results/{str(dset)}/{str(model)}")
-        results_dir.mkdir(parents=True, exist_ok=True)
-        with open(results_dir / f"{datetime_str}.json", "w") as f:
+        res_path.mkdir(parents=True, exist_ok=True)
+        with open(Path(res_path , f"{res_file_name}.json"), "w") as f:
             json.dump(eval, f, indent=2)
 
 
@@ -432,13 +435,11 @@ if args.config is not None:
                     print("Training of "+ path+ " failed")
         elif os.path.isfile(path):
             arguments = get_from_config(path)
-            print(arguments)
-            run(arguments)
-            #try:
-            #    run(arguments)
-            #except Exception as e:
-            #    print("Training of "+ path+ " failed")
-            #    print(repr(e)) 
+            try:
+                run(arguments)
+            except Exception as e:
+                print("Training of "+ path+ " failed")
+                print(repr(e)) 
         else:
             pass
 else:

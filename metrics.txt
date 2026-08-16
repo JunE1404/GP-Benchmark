@@ -1,0 +1,52 @@
+# Logged metrics overview
+
+All metrics logged by the benchmark, what they mean, and what to watch for.
+Per-iteration metrics go to WandB via `LogDetails` (`src/scaffolds.py`); final test metrics land in the results JSON (`results/<dataset>/<model>/<timestamp>.json`) and the WandB run summary.
+
+## Per-iteration metrics (WandB, one entry per training step)
+
+### Training state
+- `loss` — negative marginal likelihood (mean) on the training split, the optimization objective.
+  Decreasing = fitting the training data. Can keep dropping while val metrics plateau (hyperparameter overfitting) — not a quality signal by itself.
+- `lengthscale` — L2 norm of the (possibly per-feature/ARD) lengthscale vector.
+  - Exploding to 1e3+ = kernel collapses toward a constant function (degenerate solution, model ~ constant predictor).
+  - At its constraint floor = effectively zero-lengthscale overfitting.
+- `likelyhood_noise` — Gaussian observation noise variance.
+  - At the 1e-4 constraint floor = overconfident fit, intervals too narrow (drives PICP down).
+
+### Validation metrics (per split-standardized scale, unstandardized before comparison)
+- `val_RMSE` — root mean squared error of predictive means vs. val targets. Accuracy of point predictions; punishes large errors.
+- `val_MAE` — mean absolute error of predictive means. Robust accuracy measure.
+- `val_NLL` — negative log-likelihood of val targets under the full predictive distribution. Most informative single number: penalizes wrong means AND wrong uncertainty. Lower = better calibrated + accurate.
+- `val_PICP` — fraction of val targets inside the 95% credible interval. Uncertainty calibration:
+  - ~0.95 = honest intervals (target)
+  - below 0.95 = too narrow / overconfident (e.g. noise collapsed)
+  - above 0.95 = too wide / conservative (e.g. underfit, noise too large)
+
+### Prediction distribution over the val set (summaries of the predictive-mean vector)
+- `val_pred_mean` / `val_pred_median` — typical prediction level across val points. Near the (standardized) target mean = well-centered.
+- `val_pred_q05` / `val_pred_q95` — spread of predicted means over the val set, NOT pointwise uncertainty.
+  - Band collapsing to a point = constant-predictor degeneracy.
+  - This is prediction spread; for per-point uncertainty use `val_pred_std_mean` (and confidence_region per point).
+- `val_pred_std_mean` — average of the pointwise predictive standard deviations over the val set. The honest average uncertainty of the model.
+
+### Reading them together
+- RMSE down + NLL down + PICP -> 0.95 = healthy convergence.
+- PICP stable but RMSE stagnant = capacity/approximation limited.
+- NLL down while PICP drifts below 0.95 = trading calibration for fit.
+- Uncertainty (std_mean) flat while RMSE drops = growing overconfidence.
+
+## Final run metrics (results JSON + WandB summary)
+
+- `evalData.MAE / NLL / PICP / RMSE` — same metrics as above, evaluated once on the TEST set after training. The reported benchmark numbers.
+- `trainingTime` (s) — wall-clock training; includes the per-iteration val evaluation.
+- `evalTime` (s) — wall-clock for the test prediction.
+- `device`, `seed`, `shuffledData`, `approximation_size`, `kernel`, `optimizer`, `dataset`, `modelType`, `mean`, `likelihood` — run configuration (self-explanatory).
+- `git_commit_hash` — repo HEAD at run time (reproducibility).
+- `date` — run timestamp (also the filename).
+
+## Notes / pitfalls
+
+- **Scale consistency**: val/test metrics are only comparable across runs if the same standardization policy is used. `evaluate_regression` inverts predictions with the TRAIN target stats and only inverts the targets if the corresponding `targets_standardized` flag says the split was standardized (`helpers.py`). Runs with inconsistent y/n flags for val/test targets are not comparable.
+- **Early stopping absent**: runs stop after `iterations` steps even if metrics are still improving — always check the last-iteration trend before trusting a run's final numbers.
+- WandB run summaries and the results JSON record the same test metrics; the JSON is the canonical record (also stores the git hash and full config).

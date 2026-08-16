@@ -1,0 +1,9 @@
+Agents were used for the following:
+
+Bug tracing / pin-pointing, fixing
+
+general explanation of topics
+
+tidious / repetetive work (implementation of logging in different gp classes after first own implementation in one of them)
+
+second pair of eyes 

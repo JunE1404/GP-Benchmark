@@ -52,17 +52,23 @@ run 5 seeds on wine with each gp for next time x
 
 plot scale parameter x
 
+test cagp on large dataset soon x
+
+always standard features, dont stand targets for val and test, but report metrics in normal space x
+
+log all differen metrics on wandb (nll, rmse, intervals, val loss) x
+
+Find way to make signal variance non trainable to fix to constant for experiments x 
+            and log in name / log details x
+
+set up logging for main.py etc x
+
+local check for if seed has already been run x
+
+save lengthscales to final results x
+
+output scale in name / results x
 -------------------------------------------------------------------
-
-Plot different inducing point numbers against each other !
-- Points vs accuracy (closer to exact) !
-- Points vs training time !
-
-set up logging for main.py etc !
-
-Invertible transform class for data (forward -> std, backwards -> unstandardize /reverse), make transformation function changable !
-
-result eval framework !
 
 Implement Exact from scratch for understanding
 
@@ -75,26 +81,36 @@ Implement Exact from scratch for understanding
 
 Use Notebook for visual debugging (on 1D)
 
-Find way to make signal variance non trainable to fix to constant for experiments and log in name / log details
-
-plot coverage intervals (50, 90, 95%)
-
-think about iteration counts + early stopping (val split?)
+-------------------------------------------------------------------
 
 
-log all differen metrics on wandb (nll, rmse, intervals, val loss)
 
-test cagp on large dataset soon
 
-local check for if seed has already been run 
 
-save lengthscales to final results
+
+Plot different inducing point numbers against each other !
+- Points vs accuracy (closer to exact) !
+- Points vs training time !
+
+
+result eval framework !
 
 set up script for results analysis 
 
-output scale in name / results
+plot coverage intervals (50, 90, 95%)
 
-always standard features, dont stand targets for val and test, but report metrics in normal space
+think about iteration counts + early stopping (val split?) 
+
+
+
+
+
+
+
+
+
+
+
 
 ----------------------------------------
 python main.py --split "0.7,0,0.3" --standardize "y,y,y,y,y,y,y" --gp "exact" --kernel "RBF" --likelyhood "gaussian" --mean "constant" --optimizer "adam" --learningrate 0.1 --iterations 100 --shuffle --seed 42 --device "cuda"
