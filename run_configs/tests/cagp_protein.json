@@ -3,15 +3,15 @@
     "data_split": "0.7,0.2,0.1",
     "data_standartization": "y,y,y,y,y,y,y",
     "device": "cuda",
-    "gp": "cagp",
+    "gp": "exactcg",
     "kernel": "RBFKeops",
     "likelyhood": "gaussian",
     "mean": "constant",
     "optimizer": "adam",
     "learningrate": 0.1,
-    "iterations": 100,
+    "iterations": 500,
     "approximation_size": 512,
-    "seed": 56,
+    "seed": 67,
     "shuffle": true,
-    "trainable_output_scale": false
+    "trainable_output_scale": true
 }
