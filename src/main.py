@@ -305,6 +305,7 @@ def run(arguments: RunArguments):
 
         str_vartrained = ", Trainable output scale" if (arguments.train_signal_variance) else ""
         print(f"Kernel: {kernel_str}{str_vartrained}")
+        train_sig_var = arguments.train_signal_variance
 
         match arguments.mean:
             case "constant":
@@ -387,7 +388,7 @@ def run(arguments: RunArguments):
         start_time_eval = time.time()
         post = model.predict(test[0])
         end_time_eval = time.time()
-        ev_data = helpers.evaluate_regression(model,post, test[1], y_mean, y_std, standardize_test_targets)
+        ev_data = helpers.evaluate_regression(model,post, test[1], y_mean, y_std, standardize_test_targets, train_sig_var)
         t_time = time_end - time_start
         e_time = end_time_eval - start_time_eval
         eval = {
@@ -395,7 +396,7 @@ def run(arguments: RunArguments):
             "approximation_size": n,
             "modelType": str(model),
             "kernel": kernel_str,
-            "trained_outpu_scale": arguments.train_signal_variance,
+            "trained_output_scale": train_sig_var,
             "likelihood": ll_str,
             "mean": mean_str,
             "optimizer": opt_str,
@@ -435,11 +436,12 @@ if args.config is not None:
                     print("Training of "+ path+ " failed")
         elif os.path.isfile(path):
             arguments = get_from_config(path)
-            try:
-                run(arguments)
-            except Exception as e:
-                print("Training of "+ path+ " failed")
-                print(repr(e)) 
+            run(arguments)
+            #try:
+            #    run(arguments)
+            #except Exception as e:
+            #    print("Training of "+ path+ " failed")
+            #    print(repr(e)) 
         else:
             pass
 else:

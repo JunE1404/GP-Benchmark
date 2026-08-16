@@ -28,7 +28,7 @@ def get_git_revision_hash() -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
 
 
-def evaluate_regression(model, predictions, targets, y_mean=None, y_std=None, targets_standardized=True):
+def evaluate_regression(model, predictions, targets, y_mean=None, y_std=None, targets_standardized=True, trained_output_scale=True):
     """Compute regression metrics from predictions and targets.
 
     Args:
@@ -64,6 +64,11 @@ def evaluate_regression(model, predictions, targets, y_mean=None, y_std=None, ta
 
     rmse = torch.sqrt(torch.mean((targets - means) ** 2)).item()
 
-    l_scale = model.covar_module.base_kernel.lengthscale.norm().item()
+    if hasattr(model.covar_module, 'base_kernel'):
+        kernel = model.covar_module.base_kernel
+    else:
+        kernel = model.covar_module
+
+    l_scale = kernel.lengthscale.norm().item()
 
     return mae, nll, picp, rmse, l_scale

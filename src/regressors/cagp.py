@@ -16,41 +16,70 @@ from helpers import evaluate_regression
 
 
 def _patch_keops_covar_funcs():
-    """Add diag=True support to the KeOps kernel covar funcs.
+    """Add diag=True support to the KeOps kernels (covar funcs and forward).
 
     The computation-aware ELBO takes the diagonal of the lazy kernel operator
     (prior variance); with the lazy KeOps path active, the covar func would
-    return a LazyTensor that to_dense() cannot materialize. diag=True arrives
-    via kwargs and is handled elementwise on the plain tensors instead.
+    return a LazyTensor that to_dense() cannot materialize. Without a
+    ScaleKernel wrapper, the diagonal request additionally reaches the kernel
+    forward directly (LazyEvaluatedKernelTensor), which must return the 1-D
+    diagonal. Both cases are handled elementwise on the plain tensors.
     """
 
     from gpytorch.kernels.keops import matern_kernel, rbf_kernel
+
+    def _rbf_diag(x1, x2):
+        return (-((x1 - x2) ** 2).sum(-1) / 2).exp()
+
+    def _matern_diag(x1, x2, nu):
+        sq_distance = ((x1 - x2) ** 2).sum(-1)
+        distance = (sq_distance + 1e-20).sqrt()
+        exp_component = (-math.sqrt(nu * 2) * distance).exp()
+        if nu == 0.5:
+            constant_component = 1
+        elif nu == 1.5:
+            constant_component = (math.sqrt(3) * distance) + 1
+        elif nu == 2.5:
+            constant_component = (math.sqrt(5) * distance) + (1 + 5.0 / 3.0 * sq_distance)
+        return constant_component * exp_component
 
     _orig_rbf = rbf_kernel._covar_func
 
     def _rbf_covar_func(x1, x2, diag=False, **params):
         if diag:
-            return (-((x1 - x2) ** 2).sum(-1) / 2).exp().unsqueeze(-1)
+            return _rbf_diag(x1, x2).unsqueeze(-1)
         return _orig_rbf(x1, x2, **params)
 
     _orig_matern = matern_kernel._covar_func
 
     def _matern_covar_func(x1, x2, nu=2.5, diag=False, **params):
         if diag:
-            sq_distance = ((x1 - x2) ** 2).sum(-1)
-            distance = (sq_distance + 1e-20).sqrt()
-            exp_component = (-math.sqrt(nu * 2) * distance).exp()
-            if nu == 0.5:
-                constant_component = 1
-            elif nu == 1.5:
-                constant_component = (math.sqrt(3) * distance) + 1
-            elif nu == 2.5:
-                constant_component = (math.sqrt(5) * distance) + (1 + 5.0 / 3.0 * sq_distance)
-            return (constant_component * exp_component).unsqueeze(-1)
+            return _matern_diag(x1, x2, nu).unsqueeze(-1)
         return _orig_matern(x1, x2, nu=nu, **params)
+
+    _orig_rbf_forward = rbf_kernel.RBFKernel.forward
+
+    def _rbf_forward(self, x1, x2, diag=False, **kwargs):
+        x1_ = x1 / self.lengthscale
+        x2_ = x2 / self.lengthscale
+        if diag:
+            return _rbf_diag(x1_, x2_)
+        return _orig_rbf_forward(self, x1, x2, **kwargs)
+
+    _orig_matern_forward = matern_kernel.MaternKernel.forward
+
+    def _matern_forward(self, x1, x2, diag=False, **kwargs):
+        mean = x1.reshape(-1, x1.size(-1)).mean(0)[(None,) * (x1.dim() - 1)]
+        x1_ = (x1 - mean) / self.lengthscale
+        x2_ = (x2 - mean) / self.lengthscale
+        if diag:
+            return _matern_diag(x1_, x2_, self.nu)
+        return _orig_matern_forward(self, x1, x2, **kwargs)
 
     rbf_kernel._covar_func = _rbf_covar_func
     matern_kernel._covar_func = _matern_covar_func
+    rbf_kernel.RBFKernel.forward = _rbf_forward
+    matern_kernel.MaternKernel.forward = _matern_forward
 
 
 _patch_keops_covar_funcs()
