@@ -105,9 +105,22 @@ think about iteration counts + early stopping (val split?)
 
 
 
+PICP for 95, 90, 50
 
 
+Log signal variance value when trained
+Log observation noise value
 
++ Plots on wandb
+
+
+By next time:
+
+Run experiments
+
+plot data from these
+
+start writing (Background, gp from scrath plots)
 
 
 
