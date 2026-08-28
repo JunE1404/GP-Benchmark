@@ -1,5 +1,7 @@
 import os
 import subprocess
+from scipy import stats
+
 
 import torch
 
@@ -28,7 +30,7 @@ def get_git_revision_hash() -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
 
 
-def evaluate_regression(model, predictions, targets, y_mean=None, y_std=None, targets_standardized=True, trained_output_scale=True):
+def evaluate_regression(model, predictions, targets, y_mean=None, y_std=None, targets_standardized=True, trained_output_scale=True, picp_levels=(0.5, 0.9, 0.95)):
     """Compute regression metrics from predictions and targets.
 
     Args:
@@ -58,9 +60,12 @@ def evaluate_regression(model, predictions, targets, y_mean=None, y_std=None, ta
     mae = torch.mean(torch.abs(means - targets)).item()
     nll = -torch.distributions.Normal(means, stds).log_prob(targets).mean().item()
 
-    lower = means - 1.96 * stds
-    upper = means + 1.96 * stds
-    picp = ((targets >= lower) & (targets <= upper)).float().mean().item()
+    picp = {}
+    for alpha in picp_levels:
+        z = stats.norm.ppf((1 + alpha) / 2)
+        lower = means - z * stds
+        upper = means + z * stds
+        picp[alpha] = ((targets >= lower) & (targets <= upper)).float().mean().item()
 
     rmse = torch.sqrt(torch.mean((targets - means) ** 2)).item()
 

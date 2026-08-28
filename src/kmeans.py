@@ -10,5 +10,5 @@ def getInducingPoints(data: Tensor, k: int, strategy: str, seed: int):
             return torch.tensor(kmeans.cluster_centers_)
         case "random":
             rng = np.random.RandomState(seed)
-            shuffled = rng.shuffle(data)
-            return shuffled[:k]
+            idx = rng.permutation(len(data))
+            return data[idx[:k]]

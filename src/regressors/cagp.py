@@ -227,13 +227,10 @@ class CAGPModel(ComputationAwareGP):
                                 likelyhood_noise=self.likelihood.noise.item(),
                                 val_MAE=MAE,
                                 val_NLL=NLL,
-                                val_PICP=PICP,
-                                val_RMSE=RMSE,
-                                val_pred_mean=pst_t.mean().item(),
-                                val_pred_median=pst_t.median().item(),
-                                val_pred_q05=torch.quantile(pst_t, 0.05).item(),
-                                val_pred_q95=torch.quantile(pst_t, 0.95).item(),
-                                val_pred_std_mean=pred_std.mean().item()
+                                val_PICP50=PICP[0.5],
+                                val_PICP90=PICP[0.9],
+                                val_PICP95=PICP[0.95],
+                                val_RMSE=RMSE
                             )
                 logger(logdetails)
                 self.train()

@@ -9,9 +9,9 @@
     "mean": "constant",
     "optimizer": "adam",
     "learningrate": 0.1,
-    "iterations": 500,
+    "iterations": 250,
     "approximation_size": 512,
-    "seed": 67,
+    "seed": 422,
     "shuffle": true,
     "trainable_output_scale": true
 }

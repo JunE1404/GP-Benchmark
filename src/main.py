@@ -108,12 +108,12 @@ def get_from_args() -> RunArguments:
 
     op_select = args.optimizer
 
-    lr = args.learningrate
-
     if op_select == "lbfgs":
         lbfgs_it = args.lgbfs_max_it
+        lr = 0
     else:
         lbfgs_it = 0
+        lr = args.learningrate
 
     iter = args.iterations
     shuffle = args.shuffle
@@ -356,7 +356,7 @@ def run(arguments: RunArguments):
                 opt_str = f"Adam"
             case "lbfgs":
                 optimizer = torch.optim.LBFGS(
-                    model.parameters(),  max_iter=lbfgs_it, line_search_fn="strong_wolfe"
+                    model.parameters(),  max_iter=lbfgs_it, line_search_fn="strong_wolfe", max_eval=25
                 )
                 opt_str = f"LBFGS, MaxIter: {lbfgs_it}"
             case _:
@@ -410,7 +410,7 @@ def run(arguments: RunArguments):
             "learningrate": lr,
             "shuffledData": shuffle,
             "seed": seed,
-            "evalData": {"MAE": ev_data[0], "NLL":ev_data[1], "PICP":ev_data[2], "RMSE":ev_data[3], "Lengthscale":ev_data[4]},
+            "evalData": {"MAE": ev_data[0], "NLL":ev_data[1], "PICP50":ev_data[2][0.5],"PICP90":ev_data[2][0.9],"PICP95":ev_data[2][0.95], "RMSE":ev_data[3], "Lengthscale":ev_data[4]},
             "trainingTime": t_time,
             "evalTime": e_time,
             "device": device,
@@ -418,7 +418,7 @@ def run(arguments: RunArguments):
             "date": datetime_str,
         }
 
-        summary = RunSummary(MAE=ev_data[0], NLL=ev_data[1], PICP=ev_data[2], RMSE=ev_data[3], training_time=t_time, eval_time=e_time)
+        summary = RunSummary(MAE=ev_data[0], NLL=ev_data[1], PICP50=ev_data[2][0.5],PICP90=ev_data[2][0.9],PICP95=ev_data[2][0.95], RMSE=ev_data[3], training_time=t_time, eval_time=e_time)
         
         wandb_run.summarize(summary)
         wandb_run.finish()

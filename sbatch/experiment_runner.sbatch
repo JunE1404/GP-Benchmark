@@ -7,6 +7,7 @@
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH -o /mnt/lustre/work/hennig/hmx114/logs/%j_%x_%a.out
+#SBATCH --array=0-4
 
 # Define the base seed and calculate current seed from array task ID
 BASE_SEED=42
