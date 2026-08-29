@@ -1,5 +1,6 @@
 import gpytorch
 import torch
+import time
 from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution, VariationalStrategy
 from torch import Tensor
@@ -119,6 +120,7 @@ class SparseVariationalGP(ApproximateGP):
         is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
 
         for i in range(iterations):
+            start_time_it = time.perf_counter()
             epoch_loss = 0.0
             for x_batch, y_batch in train_loader:
                 if is_lbfgs:
@@ -140,6 +142,8 @@ class SparseVariationalGP(ApproximateGP):
                 epoch_loss += loss.item()
 
                 torch.cuda.empty_cache()
+            
+            end_step_time = time.perf_counter()
 
             x = self.val_data[0]
             if next(self.parameters()).is_cuda:
@@ -153,7 +157,7 @@ class SparseVariationalGP(ApproximateGP):
             pred_std = posterior.stddev.detach().cpu()
 
             MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.val_data[1], y_mean, y_std, standardize_val_targets)
-
+            end_iter_time = time.perf_counter()
             logdetails = LogDetails(iteration=i,
                                     loss=epoch_loss / len(train_loader),
                                     lengthscale=LScale,
@@ -164,6 +168,8 @@ class SparseVariationalGP(ApproximateGP):
                                     val_PICP90=PICP[0.9],
                                     val_PICP95=PICP[0.95],
                                     val_RMSE=RMSE,
+                                it_time_training=end_step_time-start_time_it,
+                                it_time=end_iter_time-start_time_it
             )
             logger(logdetails)
             self.train()

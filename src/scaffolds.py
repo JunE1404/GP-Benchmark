@@ -43,6 +43,8 @@ class LogDetails:
     val_PICP90: float
     val_PICP95: float
     val_RMSE: float
+    it_time_training: float
+    it_time: float
 
 
 @dataclass 
