@@ -77,7 +77,7 @@ parser.add_argument("-os", "--trainable_output_scale", action="store_true")
 args = parser.parse_args()
 
 
-def seed_check(seed,os_scale_training, dset, gptype):
+def seed_check(seed,os_scale_training, dset, gptype, opt_str):
     p = Path(f"results/{str(dset)}/{str(gptype)}")
     tmp = True
     if p.exists():
@@ -85,7 +85,7 @@ def seed_check(seed,os_scale_training, dset, gptype):
             if x.endswith(".json"):
                 with open(Path(p, x)) as f:
                     data = json.load(f)
-                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training:
+                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training and data["optimizer"] == opt_str:
                         tmp = False
     return tmp
 
@@ -297,7 +297,7 @@ def run(arguments: RunArguments):
                         lengthscale_constraint=gpytorch.constraints.GreaterThan(10e-6),
                     )
                 )
-                kernel_str = "RBF Keops"
+                kernel_str = "RBFKeops"
             case "matern2.5Keops":
                 kernel = kernelWrap(MaternKeops(nu=2.5))
                 kernel_str = "Matern 2.5 Keops"
@@ -358,7 +358,7 @@ def run(arguments: RunArguments):
                 optimizer = torch.optim.LBFGS(
                     model.parameters(),  max_iter=lbfgs_it, line_search_fn="strong_wolfe", max_eval=25
                 )
-                opt_str = f"LBFGS, MaxIter: {lbfgs_it}"
+                opt_str = f"LBFGS_MaxIter_{lbfgs_it}"
             case _:
                 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
                 opt_str = f"Adam"
@@ -368,7 +368,7 @@ def run(arguments: RunArguments):
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
 
-        seed_ok = seed_check(seed,train_sig_var, dset, model)
+        seed_ok = seed_check(seed,train_sig_var, dset, model, opt_str)
         if not seed_ok:
             print(f"Seed {seed} was used already used for {str(dset)} with {str(model)}")
             return
