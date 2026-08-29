@@ -1,5 +1,6 @@
 import contextlib
 
+import time
 import gpytorch
 import torch
 from torch import Tensor
@@ -127,6 +128,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
                 return loss
 
             for i in range(iterations):
+                start_time_it = time.perf_counter()
                 if is_lbfgs:
                     try:
                         loss = optimizer.step(closure)
@@ -139,6 +141,8 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
                         break
                     loss.backward()
                     optimizer.step()
+                
+                end_step_time = time.perf_counter()
 
                 x = self.val_data[0]
                 if next(self.parameters()).is_cuda:
@@ -153,7 +157,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
                 pred_std = posterior.stddev.detach().cpu()
 
                 MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.val_data[1], y_mean, y_std, standardize_val_targets)
-
+                end_iter_time = time.perf_counter()
                 logdetails = LogDetails(iteration=i,
                                 loss=loss.item(),
                                 lengthscale=LScale,
@@ -163,7 +167,9 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
                                 val_PICP50=PICP[0.5],
                                 val_PICP90=PICP[0.9],
                                 val_PICP95=PICP[0.95],
-                                val_RMSE=RMSE
+                                val_RMSE=RMSE,
+                                it_time_training=end_step_time-start_time_it,
+                                it_time=end_iter_time-start_time_it
                             )
                 logger(logdetails)
                 self.train()
