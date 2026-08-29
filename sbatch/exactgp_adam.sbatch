@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=gp_bench_exactcg
+#SBATCH --job-name=gp_bench_exact_adam
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
 #SBATCH --partition=2080-galvani
@@ -58,12 +58,12 @@ cd ${REPO_DIR}
 uv run python src/main.py --dataset "${DSET}" \
                         --split "0.7,0.2,0.1" \
                          --standardize "y,y,y,n,y,n" \
-                         --gp "exactcg" \
+                         --gp "exact" \
                          --kernel "RBFKeops" \
                          --likelyhood "gaussian" \
                          --mean "constant" \
-                         --optimizer "lbfgs" \
-                         --lgbfs_max_it 1 \
+                         --optimizer "adam" \
+			 --learningrate 0.1 \
                          --iterations 500 \
                          --approximation_size 1024 \
                          --shuffle \
