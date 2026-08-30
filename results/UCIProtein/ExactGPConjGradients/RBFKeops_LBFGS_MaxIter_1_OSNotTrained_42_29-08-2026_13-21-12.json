@@ -1,0 +1,27 @@
+{
+  "dataset": "UCIProtein",
+  "approximation_size": 1024,
+  "modelType": "ExactGPConjGradients",
+  "kernel": "RBFKeops",
+  "trained_output_scale": false,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "LBFGS_MaxIter_1",
+  "learningrate": 0,
+  "shuffledData": true,
+  "seed": 42,
+  "evalData": {
+    "MAE": 3.5829203128814697,
+    "NLL": 2.958397150039673,
+    "PICP50": 0.5574989318847656,
+    "PICP90": 0.888718843460083,
+    "PICP95": 0.9352864027023315,
+    "RMSE": 4.755057334899902,
+    "Lengthscale": 151.14251708984375
+  },
+  "trainingTime": 980.4148669242859,
+  "evalTime": 1.078380823135376,
+  "device": "cuda",
+  "git_commit_hash": "49916cc94a12aaffe1d69e0fc5f517ca3514cc69",
+  "date": "29-08-2026_13-21-12"
+}
