@@ -1,5 +1,8 @@
 
 
+from typing_extensions import List
+from typing_extensions import Optional
+from datasets.regression_dataset import RegressionDataset
 from dataclasses import dataclass
 
 
@@ -24,6 +27,16 @@ class RunArguments:
     batch_size: int
     train_signal_variance: bool
 
+
+@dataclass
+class EvalGroupArguments:
+    dataset: Optional[List[RegressionDataset]]
+    gp: Optional[str] = None
+    kernel: Optional[str] = None
+    optimizer: Optional[str] = None
+    seed: Optional[int] = None
+    svgp_strategy: Optional[str] = None
+    train_signal_variance: Optional[bool] = None
 
 @dataclass
 class WandBDetails:

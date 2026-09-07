@@ -225,5 +225,8 @@ __marimo__/
 src/results/
 .env 
 /wandb
-
+gp-bench
+/eval
 /results
+
+*.png
