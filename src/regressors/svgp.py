@@ -144,7 +144,7 @@ class SparseVariationalGP(ApproximateGP):
             
             end_step_time = time.perf_counter()
 
-            x = self.val_data[0]
+            x = self.test_data[0]
             if next(self.parameters()).is_cuda:
                 x = x.cuda()
             self.eval()
@@ -158,7 +158,7 @@ class SparseVariationalGP(ApproximateGP):
             MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
             end_iter_time = time.perf_counter()
             if hasattr(self.covar_module, "outputscale"):
-                    outputscale = self.covar_module.outputscale
+                    outputscale = self.covar_module.outputscale.item()
             else:
                 outputscale = 1
             logdetails = LogDetails(iteration=i,
