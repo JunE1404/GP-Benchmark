@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=test_run
+#SBATCH --job-name=svgp_gp_bench
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
 #SBATCH --partition=2080-galvani
