@@ -457,13 +457,17 @@ dependencies = [
     { name = "linear-operator" },
     { name = "matplotlib" },
     { name = "pykeops" },
-    { name = "pyqt6" },
     { name = "scipy" },
     { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' and sys_platform != 'win32'" },
     { name = "torch", version = "2.12.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "tueplots" },
     { name = "ucimlrepo" },
     { name = "wandb" },
+]
+
+[package.optional-dependencies]
+gui = [
+    { name = "pyqt6" },
 ]
 
 [package.dev-dependencies]
@@ -480,7 +484,7 @@ requires-dist = [
     { name = "linear-operator", git = "https://github.com/cornellius-gp/linear_operator?branch=sparsity" },
     { name = "matplotlib", specifier = ">=3.10.9" },
     { name = "pykeops", specifier = ">=2.3" },
-    { name = "pyqt6", specifier = ">=6.11.0" },
+    { name = "pyqt6", marker = "extra == 'gui'", specifier = ">=6.11.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "torch", marker = "sys_platform != 'linux' and sys_platform != 'win32'", specifier = ">=2.12.0" },
     { name = "torch", marker = "sys_platform == 'linux' or sys_platform == 'win32'", specifier = ">=2.12.0", index = "https://download.pytorch.org/whl/cu130" },
@@ -488,6 +492,7 @@ requires-dist = [
     { name = "ucimlrepo", specifier = ">=0.0.7" },
     { name = "wandb", specifier = ">=0.28.1" },
 ]
+provides-extras = ["gui"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "ipykernel" }]

@@ -12,12 +12,16 @@ dependencies = [
     "linear-operator",
     "matplotlib>=3.10.9",
     "pykeops>=2.3",
-    "pyqt6>=6.11.0",
     "scipy>=1.17.1",
     "torch>=2.12.0",
     "tueplots>=0.2.4",
     "ucimlrepo>=0.0.7",
     "wandb>=0.28.1",
+]
+
+[project.optional-dependencies]
+gui = [
+    "pyqt6>=6.11.0",
 ]
 
 [dependency-groups]
