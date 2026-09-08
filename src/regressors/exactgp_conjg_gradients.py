@@ -94,7 +94,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer, y_mean, y_std, standardize_val_targets, iterations, logger: Callable[[LogDetails]]):
+    def run_training(self, optimizer, y_mean, y_std, standardize_test_targets, iterations, logger: Callable[[LogDetails]]):
         """Train the Exact GP model.
 
         Optimizes kernel hyperparameters and likelihood noise by minimizing
@@ -156,18 +156,23 @@ class ExactGPCGModel(gpytorch.models.ExactGP):
                 pst_t = posterior.mean.detach().cpu()
                 pred_std = posterior.stddev.detach().cpu()
 
-                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.val_data[1], y_mean, y_std, standardize_val_targets)
+                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
                 end_iter_time = time.perf_counter()
+                if hasattr(self.covar_module, "outputscale"):
+                    outputscale = self.covar_module.outputscale
+                else:
+                    outputscale = 1
                 logdetails = LogDetails(iteration=i,
                                 loss=loss.item(),
                                 lengthscale=LScale,
+                                outputscale=outputscale,
                                 likelyhood_noise=self.likelihood.noise.item(),
-                                val_MAE=MAE,
-                                val_NLL=NLL,
-                                val_PICP50=PICP[0.5],
-                                val_PICP90=PICP[0.9],
-                                val_PICP95=PICP[0.95],
-                                val_RMSE=RMSE,
+                                test_MAE=MAE,
+                                test_NLL=NLL,
+                                test_PICP50=PICP[0.5],
+                                test_PICP90=PICP[0.9],
+                                test_PICP95=PICP[0.95],
+                                test_RMSE=RMSE,
                                 it_time_training=end_step_time-start_time_it,
                                 it_time=end_iter_time-start_time_it
                             )

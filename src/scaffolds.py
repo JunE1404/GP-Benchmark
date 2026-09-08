@@ -49,13 +49,14 @@ class LogDetails:
     iteration: int
     loss: float
     lengthscale: float
+    outputscale: float
     likelyhood_noise: float
-    val_MAE: float
-    val_NLL: float
-    val_PICP50: float
-    val_PICP90: float
-    val_PICP95: float
-    val_RMSE: float
+    test_MAE: float
+    test_NLL: float
+    test_PICP50: float
+    test_PICP90: float
+    test_PICP95: float
+    test_RMSE: float
     it_time_training: float
     it_time: float
 

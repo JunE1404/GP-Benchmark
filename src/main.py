@@ -1,3 +1,5 @@
+from datasets.uci_keggu import UCIKeggu
+from datasets.uci_road import UCIRoad
 import argparse
 import importlib
 import inspect
@@ -204,6 +206,10 @@ def run(arguments: RunArguments):
             dset = UCIWineQuality()
         case "protein":
             dset = UCIProtein()
+        case "road":
+            dset = UCIRoad()
+        case "keggu":
+            dset = UCIKeggu()
         case _:
             dset = None
     print(f"Dataset: {str(dset)}")
@@ -390,11 +396,16 @@ def run(arguments: RunArguments):
         logger = wandb_run.log
 
         time_start = time.time()
-        model.run_training(optimizer,y_mean, y_std,standardize_val_targets, iterations=iter, logger=logger)
+        model.run_training(optimizer,y_mean, y_std,standardize_test_targets, iterations=iter, logger=logger)
         time_end = time.time()
         start_time_eval = time.time()
         post = model.predict(test[0])
         end_time_eval = time.time()
+        if hasattr(model.covar_module, "outputscale"):
+            outputscale_res = model.covar_module.outputscale.item()
+        else:
+            outputscale_res = 1
+        noise_variance = model.likelihood.noise.item()
         ev_data = helpers.evaluate_regression(model,post, test[1], y_mean, y_std, standardize_test_targets, train_sig_var)
         t_time = time_end - time_start
         e_time = end_time_eval - start_time_eval
@@ -410,7 +421,7 @@ def run(arguments: RunArguments):
             "learningrate": lr,
             "shuffledData": shuffle,
             "seed": seed,
-            "evalData": {"MAE": ev_data[0], "NLL":ev_data[1], "PICP50":ev_data[2][0.5],"PICP90":ev_data[2][0.9],"PICP95":ev_data[2][0.95], "RMSE":ev_data[3], "Lengthscale":ev_data[4]},
+            "evalData": {"MAE": ev_data[0], "NLL":ev_data[1], "PICP50":ev_data[2][0.5],"PICP90":ev_data[2][0.9],"PICP95":ev_data[2][0.95], "RMSE":ev_data[3], "Lengthscale":ev_data[4], "Output_scale": outputscale_res,"Noise_variance": noise_variance},
             "trainingTime": t_time,
             "evalTime": e_time,
             "device": device,

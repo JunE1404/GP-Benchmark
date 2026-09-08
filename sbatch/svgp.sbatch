@@ -7,21 +7,25 @@
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH -o /mnt/lustre/work/hennig/hmx114/logs/%j_%x_%a.out
-#SBATCH --array=0-59
+#SBATCH --array=0-99
 
 # Define the base seed and calculate current seed from array task ID
 BASE_SEED=42
 SEED_MOD=$((SLURM_ARRAY_TASK_ID % 5))
-DSET_MOD=$((SLURM_ARRAY_TASK_ID % 3))
-SIGVAR=$((SLURM_ARRAY_TASK_ID % 4))
+DSET_MOD=$((SLURM_ARRAY_TASK_ID / 5 % 5))
+SIGVAR=$((SLURM_ARRAY_TASK_ID / 25 % 4))
 SEED=$((BASE_SEED + SEED_MOD))
 
 if [[ $DSET_MOD == 0 ]]; then
    DSET="wine"
 elif [[ $DSET_MOD == 1 ]]; then
    DSET="parkinsons"
-else
+elif [[ $DSET_MOD == 2 ]]; then
    DSET="protein"
+elif [[ $DSET_MOD == 3 ]]; then
+   DSET="road"
+else
+   DSET="keggu"
 fi
 
 

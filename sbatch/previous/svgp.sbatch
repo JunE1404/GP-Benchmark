@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=gp_bench_exactcg
+#SBATCH --job-name=test_run
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
 #SBATCH --partition=2080-galvani
@@ -7,32 +7,32 @@
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH -o /mnt/lustre/work/hennig/hmx114/logs/%j_%x_%a.out
-#SBATCH --array=0-49
+#SBATCH --array=0-59
 
 # Define the base seed and calculate current seed from array task ID
 BASE_SEED=42
 SEED_MOD=$((SLURM_ARRAY_TASK_ID % 5))
-DSET_MOD=$((SLURM_ARRAY_TASK_ID / 5 % 5))
-SIGVAR=$((SLURM_ARRAY_TASK_ID / 25 % 2))
+DSET_MOD=$((SLURM_ARRAY_TASK_ID % 3))
+SIGVAR=$((SLURM_ARRAY_TASK_ID % 4))
 SEED=$((BASE_SEED + SEED_MOD))
 
 if [[ $DSET_MOD == 0 ]]; then
    DSET="wine"
 elif [[ $DSET_MOD == 1 ]]; then
    DSET="parkinsons"
-elif [[ $DSET_MOD == 2 ]]; then
-   DSET="protein"
-elif [[ $DSET_MOD == 3 ]]; then
-   DSET="road"
 else
-   DSET="keggu"
+   DSET="protein"
 fi
 
 
 if [[ $SIGVAR == 0 ]]; then
-   TSIGVAR=(--trainable_output_scale)
+   TSIGVAR=(--trainable_output_scale --svgp_strategy "random")
+elif [[ $SIGVAR == 1 ]]; then
+   TSIGVAR=(--trainable_output_scale --svgp_strategy "kmeans")
+elif [[ $SIGVAR == 2 ]]; then
+   TSIGVAR=(--svgp_strategy "random")
 else
-   TSIGVAR=()
+   TSIGVAR=(--svgp_strategy "kmeans")
 fi
 # Define paths
 REPO_DIR="/mnt/lustre/work/hennig/hmx114/repos/gp-bench"
@@ -62,17 +62,18 @@ cd ${REPO_DIR}
 uv run python src/main.py --dataset "${DSET}" \
                         --split "0.7,0.2,0.1" \
                          --standardize "y,y,y,n,y,n" \
-                         --gp "exactcg" \
+                         --gp "svgp" \
                          --kernel "RBFKeops" \
                          --likelyhood "gaussian" \
                          --mean "constant" \
-                         --optimizer "lbfgs" \
-                         --lgbfs_max_it 1 \
+                         --optimizer "adam" \
+                         --learningrate 0.1 \
                          --iterations 500 \
                          --approximation_size 1024 \
                          --shuffle \
                          --seed "${SEED}" \
                          --device "cuda" \
+                         --svgp_batch_size 1024 \
                          "${TSIGVAR[@]}"
 
 

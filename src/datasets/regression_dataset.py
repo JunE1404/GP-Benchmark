@@ -17,6 +17,8 @@ class RegressionDataset:
         features: NDArray | Tensor = None,
         targets: NDArray | Tensor = None,
         feature_types: list[FeatureTypes] = None,
+        excluded_feature_indeces: list[int] = None,
+        includes_feature_indeces: list[int] = None
     ) -> None:
         """Initialize the dataset with features, targets, and their types.
 
@@ -25,11 +27,36 @@ class RegressionDataset:
             targets: Target values, either as a NumPy array or PyTorch tensor.
             feature_types: List of feature type labels ("con" for continuous, "cat" for categorical).
         """
+
         self.features = self._convert_to_tensor(features)
         self.targets = self._convert_to_tensor(targets).flatten()
         self.feature_types = feature_types
 
+        if self.targets == None:
+            raise Exception("Targets missing")
+        if self.features == None:
+            raise Exception("Features missing")
+        if self.feature_types == None:
+            raise Exception("Feature types missing")
+
+        n_features = self.features.shape[1]
+        n_feature_types = len(self.feature_types)
+        
+        feature_indeces = [x for x in range(n_features)]
+
+        if excluded_feature_indeces != None and includes_feature_indeces != None:
+            raise Exception("Inclusion and exclusion lists are mutually exclusive")
+        if excluded_feature_indeces != None:
+            inlcuded_features_i = [x for x in feature_indeces if x not in excluded_feature_indeces]
+        if includes_feature_indeces != None:
+            inlcuded_features_i = includes_feature_indeces
+        if excluded_feature_indeces== None and includes_feature_indeces==None:
+            inlcuded_features_i = feature_indeces
+
         SaveLocal(self, self.features, self.targets)
+        self.features = self.features[:,inlcuded_features_i]
+        if self.features.shape[1] != n_feature_types:
+            raise Exception("Included features to feature type count mismatch")
 
         if self.features.ndim == 1:
             self.features = self.features.unsqueeze(-1)
