@@ -15,6 +15,7 @@ def getFilePathes(criteria: EvalGroupArguments, dir: str):
     for ds in criteria.dataset:
         local_ret = []
         for root, subdirs, files in walk(dir):
+            subdirs[:] = [d for d in subdirs if d != "previous"]
             for filename in files: 
                 if filename.endswith(".json"):
                     with open(join(root, filename), "r") as f:
@@ -112,9 +113,9 @@ def meanLogs(filepathes, outnames):
 
 def methodRunData(path):
     data = pd.read_csv(path)
-    mean_rmse = data.min(axis=0)['val_RMSE']
-    mean_nll = data.min(axis=0)['val_NLL']
-    std_rmse = data['val_RMSE'].std()
-    std_nll = data['val_NLL'].std()
+    mean_rmse = data.min(axis=0)['test_RMSE']
+    mean_nll = data.min(axis=0)['test_NLL']
+    std_rmse = data['test_RMSE'].std()
+    std_nll = data['test_NLL'].std()
     mean_runtime_clean = data["it_time_training"].sum()
     return mean_rmse, mean_nll, mean_runtime_clean, std_rmse, std_nll

@@ -1,3 +1,5 @@
+from datasets.uci_road import UCIRoad
+from datasets.uci_keggu import UCIKeggu
 from datasets.uci_parkinsons import UCIParkinsonsTelemonitoring
 from scaffolds import EvalGroupArguments
 from datasets.uci_wine import UCIWineQuality
@@ -56,14 +58,14 @@ def plotMetricsForGP(run_csv_pathes: List[List[str]],eval_params: List[str],max_
 
 
 exact_lbfgs_sv = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGP",
     kernel="RBFKeops",
     optimizer="LBFGS_MaxIter_1",
     train_signal_variance=True
 )
 exact_lbfgs = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGP",
     kernel="RBFKeops",
     optimizer="LBFGS_MaxIter_1",
@@ -71,7 +73,7 @@ exact_lbfgs = EvalGroupArguments(
 )
 
 exact_adam_sv = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGP",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -79,7 +81,7 @@ exact_adam_sv = EvalGroupArguments(
 )
 
 exact_adam = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGP",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -90,14 +92,14 @@ exact_adam = EvalGroupArguments(
 #--------------- EXACTCG
 
 exactcg_lbfgs_sv = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGPConjGradients",
     kernel="RBFKeops",
     optimizer="LBFGS_MaxIter_1",
     train_signal_variance=True
 )
 exactcg_lbfgs = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGPConjGradients",
     kernel="RBFKeops",
     optimizer="LBFGS_MaxIter_1",
@@ -105,7 +107,7 @@ exactcg_lbfgs = EvalGroupArguments(
 )
 
 exactcg_adam_sv = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGPConjGradients",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -113,7 +115,7 @@ exactcg_adam_sv = EvalGroupArguments(
 )
 
 exactcg_adam = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="ExactGPConjGradients",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -123,7 +125,7 @@ exactcg_adam = EvalGroupArguments(
 #-------------- SVGP
 
 svgp_random_sv = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="SVGP_inducing_init_random",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -131,14 +133,14 @@ svgp_random_sv = EvalGroupArguments(
 )
 
 svgp_random = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="SVGP_inducing_init_random",
     kernel="RBFKeops",
     optimizer="Adam",
     train_signal_variance=False
 )
 svgp_kmeans_sv = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="SVGP_inducing_init_kmeans",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -146,7 +148,7 @@ svgp_kmeans_sv = EvalGroupArguments(
 )
 
 svgp_kmeans = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="SVGP_inducing_init_kmeans",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -156,7 +158,7 @@ svgp_kmeans = EvalGroupArguments(
 #--------CAGP
 
 cagp_sv = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="CAGP",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -164,7 +166,7 @@ cagp_sv = EvalGroupArguments(
 )
 
 cagp = EvalGroupArguments(
-    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein()],
+    dataset=[UCIWineQuality(),UCIParkinsonsTelemonitoring(),UCIProtein(), UCIKeggu(),UCIRoad()],
     gp="CAGP",
     kernel="RBFKeops",
     optimizer="Adam",
@@ -185,17 +187,17 @@ e_lbfgs_csv_pathes = eval.meanLogs(pathes_e_lbfgs, dsn_e_lbfgs)
 
 
 
-plotMetricsForGP([e_adam_sv_csv_pathes,e_adam_csv_pathes], ["loss","val_NLL","val_RMSE", "val_PICP95"], 
+plotMetricsForGP([e_adam_sv_csv_pathes,e_adam_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
     max_iteration=150,
-    col_labels=["UCI Wine", "UCI Protein", "UCI Parkinsons"],
-    row_labels=["Loss", "Val NLL", "Val RMSE", "Val PICP95"],
+    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
+    row_labels=["Loss","Likelihood", "Val NLL", "Val RMSE", "Val PICP95"],
     group_labels=["ExactGP Adam SV trained", "ExactGP Adam SV not trained"],
     image_filename="assets/exact_adam_signal_variance_comparison"
 )
-plotMetricsForGP([e_lbfgs_sv_csv_pathes,e_lbfgs_csv_pathes], ["loss","val_NLL","val_RMSE", "val_PICP95"], 
+plotMetricsForGP([e_lbfgs_sv_csv_pathes,e_lbfgs_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
     max_iteration=150,
-    col_labels=["UCI Wine", "UCI Protein", "UCI Parkinsons"],
-    row_labels=["Loss", "Val NLL", "Val RMSE", "Val PICP95"],
+    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
+    row_labels=["Loss","Likelihood", "Val NLL", "Val RMSE", "Val PICP95"],
     group_labels=["ExactGP LBFGS SV trained", "ExactGP LBFGS SV not trained"],
     image_filename="assets/exact_lbfgs_signal_variance_comparison"
 )
@@ -208,23 +210,23 @@ pathes_ecg_lbfgs,dsn_ecg_lbfgs = eval.getFilePathes(exactcg_lbfgs, "results")
 pathes_ecg_adam_sv,dsn_ecg_adam_sv = eval.getFilePathes(exactcg_adam_sv, "results")
 pathes_ecg_adam,dsn_ecg_adam = eval.getFilePathes(exactcg_adam, "results")
 
-
+print(pathes_ecg_adam)
 ecg_adam_sv_csv_pathes = eval.meanLogs(pathes_ecg_adam_sv, dsn_ecg_adam_sv)
 ecg_adam_csv_pathes = eval.meanLogs(pathes_ecg_adam, dsn_ecg_adam)
 ecg_lbfgs_sv_csv_pathes = eval.meanLogs(pathes_ecg_lbfgs_sv, dsn_ecg_lbfgs_sv)
 ecg_lbfgs_csv_pathes = eval.meanLogs(pathes_ecg_lbfgs, dsn_ecg_lbfgs)
 
 
-plotMetricsForGP([ecg_adam_sv_csv_pathes,ecg_adam_csv_pathes], ["loss","val_NLL","val_RMSE", "val_PICP95"], 
+plotMetricsForGP([ecg_adam_sv_csv_pathes,ecg_adam_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
     max_iteration=150,
-    col_labels=["UCI Wine", "UCI Protein", "UCI Parkinsons"],
+    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
     row_labels=["Loss", "Val NLL", "Val RMSE", "Val PICP95"],
     group_labels=["ExactGPCG Adam SV trained", "ExactGPCG Adam SV not trained"],
     image_filename="assets/exactcg_adam_signal_variance_comparison"
 )
-plotMetricsForGP([ecg_lbfgs_sv_csv_pathes,ecg_lbfgs_csv_pathes], ["loss","val_NLL","val_RMSE", "val_PICP95"], 
+plotMetricsForGP([ecg_lbfgs_sv_csv_pathes,ecg_lbfgs_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
     max_iteration=150,
-    col_labels=["UCI Wine", "UCI Protein", "UCI Parkinsons"],
+    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
     row_labels=["Loss", "Val NLL", "Val RMSE", "Val PICP95"],
     group_labels=["ExactGPCG LBFGS SV trained", "ExactGPCG LBFGS SV not trained"],
     image_filename="assets/exactcg_lbfgs_signal_variance_comparison"
@@ -249,7 +251,7 @@ pathes_cagp, dsn_cagp= eval.getFilePathes(cagp, "results")
 cagp_sv_csv_pathes = eval.meanLogs(pathes_cagp_sv, dsn_cagp_sv)
 cagp_csv_pathes = eval.meanLogs(pathes_cagp, dsn_cagp)
 
-dslist = ["Wine", "Protein", "Parkinson"]
+dslist = ["Wine", "Protein", "Parkinson", "Keggu", "Road"]
 def getValuesForPathes(pathes, datasets):
     for i, path in enumerate(pathes):
         mean_rmse, mean_nll, runtime, std_rmse, std_nll =eval.methodRunData(path)
