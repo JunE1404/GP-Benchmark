@@ -1,0 +1,29 @@
+{
+  "dataset": "UCIRoad",
+  "approximation_size": 1024,
+  "modelType": "ExactGPConjGradients",
+  "kernel": "RBFKeops",
+  "trained_output_scale": false,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "LBFGS_MaxIter_1",
+  "learningrate": 0,
+  "shuffledData": true,
+  "seed": 46,
+  "evalData": {
+    "MAE": 0.3439188301563263,
+    "NLL": 0.6242292523384094,
+    "PICP50": 0.5611993670463562,
+    "PICP90": 0.9009634852409363,
+    "PICP95": 0.9591391086578369,
+    "RMSE": 0.44673678278923035,
+    "Lengthscale": 1.1531161069869995,
+    "Output_scale": 1,
+    "Noise_variance": 0.5433935523033142
+  },
+  "trainingTime": 3532.6441707611084,
+  "evalTime": 7.012641429901123,
+  "device": "cuda",
+  "git_commit_hash": "3d1ea751570e5691c15dee7b824acf583258f1f3",
+  "date": "09-09-2026_18-06-58"
+}
