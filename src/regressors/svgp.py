@@ -121,6 +121,8 @@ class SparseVariationalGP(ApproximateGP):
                 train_dataset, batch_size=self.batch_size, shuffle=True
             ) 
             for x_batch, y_batch in train_loader:
+                if i >= iterations:
+                    break
                 start_time_it = time.perf_counter()
                 if is_lbfgs:
 
