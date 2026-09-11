@@ -1,0 +1,29 @@
+{
+  "dataset": "UCIWineQuality",
+  "approximation_size": 1024,
+  "modelType": "ExactGP",
+  "kernel": "RBFKeops",
+  "trained_output_scale": false,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "LBFGS_MaxIter_1",
+  "learningrate": 0,
+  "shuffledData": true,
+  "seed": 43,
+  "evalData": {
+    "MAE": 0.5514195561408997,
+    "NLL": 0.8817228674888611,
+    "PICP50": 0.5514593124389648,
+    "PICP90": 0.8909370303153992,
+    "PICP95": 0.9339478015899658,
+    "RMSE": 0.7359656691551208,
+    "Lengthscale": 4.677424430847168,
+    "Output_scale": 1,
+    "Noise_variance": 0.00010000980546465144
+  },
+  "trainingTime": 30.12344479560852,
+  "evalTime": 0.007684230804443359,
+  "device": "cuda",
+  "git_commit_hash": "3d1ea751570e5691c15dee7b824acf583258f1f3",
+  "date": "09-09-2026_16-03-54"
+}
