@@ -115,14 +115,13 @@ class SparseVariationalGP(ApproximateGP):
         )
 
         is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
-
-        for i in range(iterations):
-            start_time_it = time.perf_counter()
-            epoch_loss = 0.0  
+        i = 0
+        while i < iterations:
             train_loader = DataLoader(
                 train_dataset, batch_size=self.batch_size, shuffle=True
             ) 
             for x_batch, y_batch in train_loader:
+                start_time_it = time.perf_counter()
                 if is_lbfgs:
 
                     def closure():
@@ -139,45 +138,45 @@ class SparseVariationalGP(ApproximateGP):
                     loss.backward()
                     optimizer.step()
 
-                epoch_loss += loss.item()
 
             
-            end_step_time = time.perf_counter()
+                end_step_time = time.perf_counter()
 
-            x = self.test_data[0]
-            if next(self.parameters()).is_cuda:
-                x = x.cuda()
-            self.eval()
-            self.likelihood.eval()
-            with torch.no_grad():
-                posterior = self.likelihood(self(x))
+                x = self.test_data[0]
+                if next(self.parameters()).is_cuda:
+                    x = x.cuda()
+                self.eval()
+                self.likelihood.eval()
+                with torch.no_grad():
+                    posterior = self.likelihood(self(x))
 
-            pst_t = posterior.mean.detach().cpu()
-            pred_std = posterior.stddev.detach().cpu()
+                pst_t = posterior.mean.detach().cpu()
+                pred_std = posterior.stddev.detach().cpu()
 
-            MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
-            end_iter_time = time.perf_counter()
-            if hasattr(self.covar_module, "outputscale"):
-                    outputscale = self.covar_module.outputscale.item()
-            else:
-                outputscale = 1
-            logdetails = LogDetails(iteration=i,
-                                    loss=epoch_loss / len(train_loader),
-                                    lengthscale=LScale,
-                                    outputscale=outputscale,
-                                    likelyhood_noise=self.likelihood.noise.item(),
-                                    test_MAE=MAE,
-                                    test_NLL=NLL,
-                                    test_PICP50=PICP[0.5],
-                                    test_PICP90=PICP[0.9],
-                                    test_PICP95=PICP[0.95],
-                                    test_RMSE=RMSE,
-                                it_time_training=end_step_time-start_time_it,
-                                it_time=end_iter_time-start_time_it
-            )
-            logger(logdetails)
-            self.train()
-            self.likelihood.train()
+                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
+                end_iter_time = time.perf_counter()
+                if hasattr(self.covar_module, "outputscale"):
+                        outputscale = self.covar_module.outputscale.item()
+                else:
+                    outputscale = 1
+                logdetails = LogDetails(iteration=i,
+                                        loss=loss.item(),
+                                        lengthscale=LScale,
+                                        outputscale=outputscale,
+                                        likelyhood_noise=self.likelihood.noise.item(),
+                                        test_MAE=MAE,
+                                        test_NLL=NLL,
+                                        test_PICP50=PICP[0.5],
+                                        test_PICP90=PICP[0.9],
+                                        test_PICP95=PICP[0.95],
+                                        test_RMSE=RMSE,
+                                    it_time_training=end_step_time-start_time_it,
+                                    it_time=end_iter_time-start_time_it
+                )
+                logger(logdetails)
+                self.train()
+                self.likelihood.train()
+                i = i+1
             torch.cuda.empty_cache()
 
         self.trained = True

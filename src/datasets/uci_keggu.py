@@ -33,6 +33,4 @@ class UCIKeggu(RegressionDataset):
         feature_types = [
             "con" for i in range(24)
         ]
-        print(features[0,:])
-        print(features.shape, len(feature_types))
         super().__init__(features=features, targets=targets, feature_types=feature_types)

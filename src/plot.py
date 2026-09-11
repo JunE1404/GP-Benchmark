@@ -18,10 +18,12 @@ from tueplots.constants.color import palettes
 
 # Increase the resolution of all the plots below
 plt.rcParams.update({"figure.dpi": 150})
+plt.rcParams['text.usetex'] = True
+
 
 
 def plotMetricsForGP(run_csv_pathes: List[List[str]],eval_params: List[str],max_iteration=None,col_labels=None, row_labels=None, group_labels=None, image_filename=None):
-    params = figsizes.icml2022_full(nrows=len(eval_params), ncols=len(run_csv_pathes))
+    params = figsizes.aistats2025_full(nrows=len(eval_params), ncols=len(run_csv_pathes[0]))
     plt.rcParams.update(params)
 
     plt.rcParams.update(cycler.cycler(color=palettes.tue_ai))
@@ -186,20 +188,12 @@ e_lbfgs_sv_csv_pathes = eval.meanLogs(pathes_e_lbfgs_sv, dsn_e_lbfgs_sv)
 e_lbfgs_csv_pathes = eval.meanLogs(pathes_e_lbfgs, dsn_e_lbfgs)
 
 
-
-plotMetricsForGP([e_adam_sv_csv_pathes,e_adam_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
+plotMetricsForGP([e_adam_sv_csv_pathes,e_adam_csv_pathes,e_lbfgs_sv_csv_pathes,e_lbfgs_csv_pathes], ["loss","outputscale","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95","test_PICP90","test_PICP50"], 
     max_iteration=150,
     col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
-    row_labels=["Loss","Likelihood", "Val NLL", "Val RMSE", "Val PICP95"],
-    group_labels=["ExactGP Adam SV trained", "ExactGP Adam SV not trained"],
-    image_filename="assets/exact_adam_signal_variance_comparison"
-)
-plotMetricsForGP([e_lbfgs_sv_csv_pathes,e_lbfgs_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
-    max_iteration=150,
-    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
-    row_labels=["Loss","Likelihood", "Val NLL", "Val RMSE", "Val PICP95"],
-    group_labels=["ExactGP LBFGS SV trained", "ExactGP LBFGS SV not trained"],
-    image_filename="assets/exact_lbfgs_signal_variance_comparison"
+    row_labels=["Loss",r"$\sigma^2_f$",r"$\sigma^2_n$", "NLL", "RMSE", "PICP95", "PICP90", "PICP50"],
+    group_labels=[r"Adam $\sigma^2_f$ T", r"Adam $\sigma^2_f$ F",r"LBFGS $\sigma^2_f$ T", r"LBFGS $\sigma^2_f$ F"],
+    image_filename="assets/exact_signal_variance_comparison"
 )
 
 #------------------ EXACTCG
@@ -216,20 +210,12 @@ ecg_adam_csv_pathes = eval.meanLogs(pathes_ecg_adam, dsn_ecg_adam)
 ecg_lbfgs_sv_csv_pathes = eval.meanLogs(pathes_ecg_lbfgs_sv, dsn_ecg_lbfgs_sv)
 ecg_lbfgs_csv_pathes = eval.meanLogs(pathes_ecg_lbfgs, dsn_ecg_lbfgs)
 
-
-plotMetricsForGP([ecg_adam_sv_csv_pathes,ecg_adam_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
+plotMetricsForGP([ecg_adam_sv_csv_pathes,ecg_adam_csv_pathes,ecg_lbfgs_sv_csv_pathes,ecg_lbfgs_csv_pathes], ["loss","outputscale","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95","test_PICP90","test_PICP50"], 
     max_iteration=150,
     col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
-    row_labels=["Loss", "Val NLL", "Val RMSE", "Val PICP95"],
-    group_labels=["ExactGPCG Adam SV trained", "ExactGPCG Adam SV not trained"],
-    image_filename="assets/exactcg_adam_signal_variance_comparison"
-)
-plotMetricsForGP([ecg_lbfgs_sv_csv_pathes,ecg_lbfgs_csv_pathes], ["loss","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95"], 
-    max_iteration=150,
-    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
-    row_labels=["Loss", "Val NLL", "Val RMSE", "Val PICP95"],
-    group_labels=["ExactGPCG LBFGS SV trained", "ExactGPCG LBFGS SV not trained"],
-    image_filename="assets/exactcg_lbfgs_signal_variance_comparison"
+    row_labels=["Loss",r"$\sigma^2_f$",r"$\sigma^2_n$", "NLL", "RMSE", "PICP95", "PICP90", "PICP50"],
+    group_labels=[r"Adam $\sigma^2_f$ T", r"Adam $\sigma^2_f$ F",r"LBFGS $\sigma^2_f$ T", r"LBFGS $\sigma^2_f$ F"],
+    image_filename="assets/exactcg_signal_variance_comparison"
 )
 
 #--------- SVGP
@@ -243,6 +229,14 @@ svgp_random_csv_pathes = eval.meanLogs(pathes_svgp_random, dsn_svgp_random)
 svgp_kmeans_sv_csv_pathes = eval.meanLogs(pathes_svgp_kmeans_sv, dsn_svgp_kmeans_sv)
 svgp_kmeans_csv_pathes = eval.meanLogs(pathes_svgp_kmeans, dsn_svgp_kmeans)
 
+
+plotMetricsForGP([svgp_random_sv_csv_pathes,svgp_random_csv_pathes,svgp_kmeans_sv_csv_pathes,svgp_kmeans_csv_pathes], ["loss","outputscale","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95","test_PICP90","test_PICP50"], 
+    max_iteration=150,
+    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
+    row_labels=["Loss",r"$\sigma^2_f$",r"$\sigma^2_n$", "NLL", "RMSE", "PICP95", "PICP90", "PICP50"],
+    group_labels=[r"Random $\sigma^2_f$ T", r"Random $\sigma^2_f$ F",r"K-means $\sigma^2_f$ T", r"K-means $\sigma^2_f$ F"],
+    image_filename="assets/svgp_init_comaprison"
+)
 #--------- CAGP
 
 pathes_cagp_sv, dsn_cagp_sv = eval.getFilePathes(cagp_sv, "results")
@@ -251,41 +245,51 @@ pathes_cagp, dsn_cagp= eval.getFilePathes(cagp, "results")
 cagp_sv_csv_pathes = eval.meanLogs(pathes_cagp_sv, dsn_cagp_sv)
 cagp_csv_pathes = eval.meanLogs(pathes_cagp, dsn_cagp)
 
+plotMetricsForGP([cagp_sv_csv_pathes,cagp_csv_pathes], ["loss","outputscale","likelyhood_noise","test_NLL","test_RMSE", "test_PICP95","test_PICP90","test_PICP50"], 
+    max_iteration=150,
+    col_labels=["Wine", "Protein", "Parkinsons", "Keggu", "Road"],
+    row_labels=["Loss",r"$\sigma^2_f$",r"$\sigma^2_n$", "NLL", "RMSE", "PICP95", "PICP90", "PICP50"],
+    group_labels=[r"$\sigma^2_f$ T", r"$\sigma^2_f$ F"],
+    image_filename="assets/cagp_sv_comparison"
+)
+
 dslist = ["Wine", "Protein", "Parkinson", "Keggu", "Road"]
-def getValuesForPathes(pathes, datasets):
+def getValuesForPathes(pathes, datasets, f):
     for i, path in enumerate(pathes):
-        mean_rmse, mean_nll, runtime, std_rmse, std_nll =eval.methodRunData(path)
-        print(f"{datasets[i]},{mean_rmse}, {std_rmse}, {mean_nll}, {std_nll}, {runtime}")
+        ln, mean_rmse, mean_nll, runtime, std_rmse, std_nll =eval.methodRunData(path)
+        f.write(f"{datasets[i]},{ln},{mean_rmse}, {std_rmse}, {mean_nll}, {std_nll}, {runtime}\n")
 
 
-print("Exact Adam SV")
-getValuesForPathes(e_adam_sv_csv_pathes, dslist)
-print("Exact Adam")
-getValuesForPathes(e_adam_csv_pathes, dslist)
-print("Exact LBFGS SV")
-getValuesForPathes(e_lbfgs_sv_csv_pathes, dslist)
-print("Exact LBFGS")
-getValuesForPathes(e_lbfgs_csv_pathes, dslist)
+with open("eval/table.txt", "w") as f:
 
-print("ExactCG Adam SV")
-getValuesForPathes(ecg_adam_sv_csv_pathes, dslist)
-print("ExactCG Adam")
-getValuesForPathes(ecg_adam_csv_pathes, dslist)
-print("ExactCG LBFGS SV")
-getValuesForPathes(ecg_lbfgs_sv_csv_pathes, dslist)
-print("ExactCG LBFGS")
-getValuesForPathes(ecg_lbfgs_csv_pathes, dslist)
+    f.write("Exact Adam SV\n")
+    getValuesForPathes(e_adam_sv_csv_pathes, dslist,f)
+    f.write("Exact Adam\n")
+    getValuesForPathes(e_adam_csv_pathes, dslist,f)
+    f.write("Exact LBFGS SV\n")
+    getValuesForPathes(e_lbfgs_sv_csv_pathes, dslist,f)
+    f.write("Exact LBFGS\n")
+    getValuesForPathes(e_lbfgs_csv_pathes, dslist,f)
 
-print("SVGP random SV")
-getValuesForPathes(svgp_random_sv_csv_pathes, dslist)
-print("SVGP random")
-getValuesForPathes(svgp_random_csv_pathes, dslist)
-print("SVGP kmeans SV")
-getValuesForPathes(svgp_kmeans_sv_csv_pathes, dslist)
-print("SVGP kmeans")
-getValuesForPathes(svgp_kmeans_csv_pathes, dslist)
+    f.write("ExactCG Adam SV\n")
+    getValuesForPathes(ecg_adam_sv_csv_pathes, dslist,f)
+    f.write("ExactCG Adam\n")
+    getValuesForPathes(ecg_adam_csv_pathes, dslist,f)
+    f.write("ExactCG LBFGS SV\n")
+    getValuesForPathes(ecg_lbfgs_sv_csv_pathes, dslist,f)
+    f.write("ExactCG LBFGS\n")
+    getValuesForPathes(ecg_lbfgs_csv_pathes, dslist,f)
 
-print("CAGP SV")
-getValuesForPathes(cagp_sv_csv_pathes, dslist)
-print("CAGP ")
-getValuesForPathes(cagp_csv_pathes, dslist)
+    f.write("SVGP random SV\n")
+    getValuesForPathes(svgp_random_sv_csv_pathes, dslist,f)
+    f.write("SVGP random\n")
+    getValuesForPathes(svgp_random_csv_pathes, dslist,f)
+    f.write("SVGP kmeans SV\n")
+    getValuesForPathes(svgp_kmeans_sv_csv_pathes, dslist,f)
+    f.write("SVGP kmeans\n")
+    getValuesForPathes(svgp_kmeans_csv_pathes, dslist,f)
+
+    f.write("CAGP SV\n")
+    getValuesForPathes(cagp_sv_csv_pathes, dslist,f)
+    f.write("CAGP\n")
+    getValuesForPathes(cagp_csv_pathes, dslist,f)

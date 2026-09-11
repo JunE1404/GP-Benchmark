@@ -25,10 +25,8 @@ class UCIRoad(RegressionDataset):
             features = data.iloc[:,[0,2,3]].to_numpy()
             targets = data.iloc[:,[1]].to_numpy()
         else:
-            print("local")
             features = f_local
             targets = t_local
-        print(features.shape[1])
         feature_exclude = [0]
         feature_types = [
             "con",

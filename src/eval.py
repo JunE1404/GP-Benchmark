@@ -113,9 +113,10 @@ def meanLogs(filepathes, outnames):
 
 def methodRunData(path):
     data = pd.read_csv(path)
+    ln = data.min(axis=0)['likelyhood_noise']
     mean_rmse = data.min(axis=0)['test_RMSE']
     mean_nll = data.min(axis=0)['test_NLL']
     std_rmse = data['test_RMSE'].std()
     std_nll = data['test_NLL'].std()
     mean_runtime_clean = data["it_time_training"].sum()
-    return mean_rmse, mean_nll, mean_runtime_clean, std_rmse, std_nll
+    return ln,mean_rmse, mean_nll, mean_runtime_clean, std_rmse, std_nll
