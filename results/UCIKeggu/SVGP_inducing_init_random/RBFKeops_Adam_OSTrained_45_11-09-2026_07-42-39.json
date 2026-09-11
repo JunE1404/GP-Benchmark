@@ -1,0 +1,29 @@
+{
+  "dataset": "UCIKeggu",
+  "approximation_size": 1024,
+  "modelType": "SVGP_inducing_init_random",
+  "kernel": "RBFKeops",
+  "trained_output_scale": true,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "Adam",
+  "learningrate": 0.1,
+  "shuffledData": true,
+  "seed": 45,
+  "evalData": {
+    "MAE": 0.014308905228972435,
+    "NLL": -2.168081760406494,
+    "PICP50": 0.8301052451133728,
+    "PICP90": 0.942199170589447,
+    "PICP95": 0.958060085773468,
+    "RMSE": 0.028167106211185455,
+    "Lengthscale": 44.178741455078125,
+    "Output_scale": 0.3251665532588959,
+    "Noise_variance": 0.13261887431144714
+  },
+  "trainingTime": 67.54434871673584,
+  "evalTime": 0.032438039779663086,
+  "device": "cuda",
+  "git_commit_hash": "5a5375f7e2c42b1ccd162d842ab769d6a78e1f89",
+  "date": "11-09-2026_07-42-39"
+}
