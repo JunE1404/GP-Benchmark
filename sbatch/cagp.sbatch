@@ -60,7 +60,7 @@ mkdir -p /mnt/lustre/work/hennig/hmx114/logs
 # Change to repo directory and run with uv
 cd ${REPO_DIR}
 uv run python src/main.py --dataset "${DSET}" \
-                        --split "0.7,0.2,0.1" \
+                        --split "0.9,0.0,0.1" \
                          --standardize "y,y,y,n,y,n" \
                          --gp "cagp" \
                          --kernel "RBFKeops" \

@@ -103,7 +103,7 @@ class SparseVariationalGP(ApproximateGP):
         def _compute_loss(mll, x_batch, y_batch):
             """Compute the negative variational ELBO loss for a batch."""
             output = self(x_batch)
-            return -mll(output, y_batch).mean()
+            return -mll(output, y_batch)
 
         self.train()
         self.likelihood.train()
@@ -115,33 +115,34 @@ class SparseVariationalGP(ApproximateGP):
         )
 
         is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
-        i = 0
-        while i < iterations:
-            train_loader = DataLoader(
-                train_dataset, batch_size=self.batch_size, shuffle=True
-            ) 
-            for x_batch, y_batch in train_loader:
-                if i >= iterations:
-                    break
-                start_time_it = time.perf_counter()
-                if is_lbfgs:
+        with gpytorch.settings._linalg_dtype_cholesky(torch.float32):
+            for i in range(iterations):
+                epoch_loss = 0
+                train_loader = DataLoader(
+                    train_dataset, batch_size=self.batch_size, shuffle=True
+                ) 
+                for x_batch, y_batch in train_loader:
+                    start_time_it = time.perf_counter()
+                    if is_lbfgs:
 
-                    def closure():
-                        """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
+                        def closure():
+                            """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
+                            optimizer.zero_grad()
+                            loss = _compute_loss(mll, x_batch, y_batch)
+                            loss.backward()
+                            return loss
+
+                        loss = optimizer.step(closure)
+                    else:
                         optimizer.zero_grad()
                         loss = _compute_loss(mll, x_batch, y_batch)
                         loss.backward()
-                        return loss
-
-                    loss = optimizer.step(closure)
-                else:
-                    optimizer.zero_grad()
-                    loss = _compute_loss(mll, x_batch, y_batch)
-                    loss.backward()
-                    optimizer.step()
+                        optimizer.step()
+                    
+                    epoch_loss += loss.item()
 
 
-            
+                
                 end_step_time = time.perf_counter()
 
                 x = self.test_data[0]
@@ -162,7 +163,7 @@ class SparseVariationalGP(ApproximateGP):
                 else:
                     outputscale = 1
                 logdetails = LogDetails(iteration=i,
-                                        loss=loss.item(),
+                                        loss=epoch_loss/len(train_loader),
                                         lengthscale=LScale,
                                         outputscale=outputscale,
                                         likelyhood_noise=self.likelihood.noise.item(),
@@ -178,8 +179,7 @@ class SparseVariationalGP(ApproximateGP):
                 logger(logdetails)
                 self.train()
                 self.likelihood.train()
-                i = i+1
-            torch.cuda.empty_cache()
+                torch.cuda.empty_cache()
 
         self.trained = True
 
