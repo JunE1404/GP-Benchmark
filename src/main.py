@@ -79,7 +79,7 @@ parser.add_argument("-os", "--trainable_output_scale", action="store_true")
 args = parser.parse_args()
 
 
-def seed_check(seed,os_scale_training, dset, gptype, opt_str):
+def seed_check(seed,os_scale_training, dset, gptype, opt_str, approx_size):
     p = Path(f"results/{str(dset)}/{str(gptype)}")
     tmp = True
     if p.exists():
@@ -87,7 +87,7 @@ def seed_check(seed,os_scale_training, dset, gptype, opt_str):
             if x.endswith(".json"):
                 with open(Path(p, x)) as f:
                     data = json.load(f)
-                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training and data["optimizer"] == opt_str:
+                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training and data["optimizer"] == opt_str and data.get("approximation_size") == approx_size:
                         tmp = False
     return tmp
 
@@ -374,7 +374,7 @@ def run(arguments: RunArguments):
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
 
-        seed_ok = seed_check(seed,train_sig_var, dset, model, opt_str)
+        seed_ok = seed_check(seed,train_sig_var, dset, model, opt_str, n)
         if not seed_ok:
             print(f"Seed {seed} was used already used for {str(dset)} with {str(model)}")
             return
@@ -385,12 +385,12 @@ def run(arguments: RunArguments):
             sig_var_string = "OSNotTrained"
         res_path = Path(f"results/{str(dset)}/{str(model)}")
         log_path = Path(res_path, "logs")
-        res_file_name = f"{kernel_str}_{opt_str}_{sig_var_string}_{seed}_{datetime_str}"
+        res_file_name = f"{kernel_str}_{opt_str}_{sig_var_string}_as{n}_{seed}_{datetime_str}"
         log_file_path = Path(log_path, f"{res_file_name}.csv")
         log_path.mkdir(parents=True, exist_ok=True)
         res_path.mkdir(parents=True, exist_ok=True)
 
-        run_name = f"{str(model)}_{str(dset)}_{kernel_str}_{opt_str}_{sig_var_string}_{str(seed)}_{datetime_str}"
+        run_name = f"{str(model)}_{str(dset)}_{kernel_str}_{opt_str}_{sig_var_string}_as{n}_{str(seed)}_{datetime_str}"
         wandb_details = WandBDetails(entity="GP-Bench-Thesis", project="GP Test Runs", name=run_name)
         wandb_run = WandBRun(wandb_details, arguments, log_file_path)
         logger = wandb_run.log
