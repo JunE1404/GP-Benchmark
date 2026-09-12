@@ -412,6 +412,7 @@ def run(arguments: RunArguments):
         eval = {
             "dataset": str(dset),
             "approximation_size": n,
+            "fulldata": arguments.approximation_size is None,
             "modelType": str(model),
             "kernel": kernel_str,
             "trained_output_scale": train_sig_var,
