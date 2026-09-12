@@ -205,4 +205,4 @@ class SparseVariationalGP(ApproximateGP):
         return posterior
 
     def __str__(self) -> str:
-        return f"SVGP_inducing_init_{self.inducing_point_strat}"
+        return "SVGP"

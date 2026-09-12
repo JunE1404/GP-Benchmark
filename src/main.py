@@ -385,12 +385,13 @@ def run(arguments: RunArguments):
             sig_var_string = "OSNotTrained"
         res_path = Path(f"results/{str(dset)}/{str(model)}")
         log_path = Path(res_path, "logs")
-        res_file_name = f"{kernel_str}_{opt_str}_{sig_var_string}_as{n}_{seed}_{datetime_str}"
+        ind_method = f"_ipm_{arguments.svgp_strategy}" if arguments.gp == "svgp" else ""
+        res_file_name = f"{kernel_str}_{opt_str}_{sig_var_string}{ind_method}_as{n}_{seed}_{datetime_str}"
         log_file_path = Path(log_path, f"{res_file_name}.csv")
         log_path.mkdir(parents=True, exist_ok=True)
         res_path.mkdir(parents=True, exist_ok=True)
 
-        run_name = f"{str(model)}_{str(dset)}_{kernel_str}_{opt_str}_{sig_var_string}_as{n}_{str(seed)}_{datetime_str}"
+        run_name = f"{str(model)}_{str(dset)}_{kernel_str}_{opt_str}_{sig_var_string}{ind_method}_as{n}_{str(seed)}_{datetime_str}"
         wandb_details = WandBDetails(entity="GP-Bench-Thesis", project="GP Test Runs", name=run_name)
         wandb_run = WandBRun(wandb_details, arguments, log_file_path)
         logger = wandb_run.log
@@ -414,6 +415,7 @@ def run(arguments: RunArguments):
             "approximation_size": n,
             "fulldata": arguments.approximation_size is None,
             "modelType": str(model),
+            "inducing_point_method": arguments.svgp_strategy if arguments.gp == "svgp" else None,
             "kernel": kernel_str,
             "trained_output_scale": train_sig_var,
             "likelihood": ll_str,
