@@ -12,8 +12,8 @@ from torch import Tensor
 from gpytorch.models import ComputationAwareGP
 from gpytorch.mlls import ComputationAwareELBO
 from collections.abc import Callable, Iterator
-from scaffolds import LogDetails
-from helpers import evaluate_regression
+from misc.scaffolds import LogDetails
+from misc.evaluate_regression import evaluate_regression
 
 
 def _patch_keops_covar_funcs() -> None:

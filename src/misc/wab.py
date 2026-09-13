@@ -2,7 +2,7 @@ import random
 from typing import List, Tuple
 
 import wandb
-from scaffolds import WandBDetails, RunArguments, LogDetails, RunSummary
+from .scaffolds import WandBDetails, RunArguments, LogDetails, RunSummary
 from dataclasses import asdict
 from pathlib import Path
 import pandas as pd

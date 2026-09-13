@@ -5,8 +5,8 @@ import gpytorch
 import torch
 from torch import Tensor
 from collections.abc import Callable, Iterator
-from scaffolds import LogDetails
-from helpers import evaluate_regression
+from misc.scaffolds import LogDetails
+from misc.evaluate_regression import evaluate_regression
 
 
 class LossNotFiniteError(RuntimeError):

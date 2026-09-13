@@ -1,6 +1,6 @@
 import gpytorch
 from torch.fft import Tensor
-from scaffolds import RunArguments
+from misc.scaffolds import RunArguments
 from regressors.cagp import CAGPModel
 from regressors.exactgp import ExactGPModel
 from regressors.exactgp_conjg_gradients import ExactGPCGModel

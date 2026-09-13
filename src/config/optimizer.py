@@ -1,6 +1,6 @@
 from typing_extensions import Tuple
 import gpytorch
-from scaffolds import RunArguments
+from misc.scaffolds import RunArguments
 import torch
 def getOptimizer(arguments: RunArguments, model: gpytorch.models.GP)->Tuple[torch.optim.Optimizer, str]:
     """Build the optimizer named by ``arguments.optimizer``.

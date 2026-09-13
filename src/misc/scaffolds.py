@@ -1,10 +1,16 @@
 
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from click import Path
 from typing_extensions import List
 from typing_extensions import Optional
-from datasets.regression_dataset import RegressionDataset
 from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from datasets.regression_dataset import RegressionDataset
 
 
 @dataclass

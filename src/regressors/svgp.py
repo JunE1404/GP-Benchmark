@@ -6,10 +6,10 @@ from gpytorch.variational import CholeskyVariationalDistribution, VariationalStr
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 from collections.abc import Callable
-from scaffolds import LogDetails
+from misc.scaffolds import LogDetails
 
-from helpers import getInducingPoints
-from helpers import evaluate_regression
+from misc.helpers import getInducingPoints
+from misc.evaluate_regression import evaluate_regression
 
 
 class SparseVariationalGP(ApproximateGP):

@@ -1,5 +1,5 @@
 from typing_extensions import Tuple
-from scaffolds import RunArguments
+from misc.scaffolds import RunArguments
 from  gpytorch.likelihoods import GaussianLikelihood
 def getLikelihood(arguments: RunArguments) -> Tuple[GaussianLikelihood | None, str]:
     """Build the likelihood named by ``arguments.likelyhood``.

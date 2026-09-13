@@ -4,8 +4,8 @@ import time
 from torch import Tensor
 import contextlib
 from collections.abc import Callable, Iterator
-from scaffolds import LogDetails
-from helpers import evaluate_regression
+from misc.scaffolds import LogDetails
+from misc.evaluate_regression import evaluate_regression
 
 class ExactGPModel(gpytorch.models.ExactGP):
     train_data: tuple[Tensor, Tensor]

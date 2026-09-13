@@ -6,16 +6,16 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 
-import helpers
-from scaffolds import RunArguments, WandBDetails, RunSummary
-from wab import WandBRun
+import misc.helpers as helpers
+from misc.scaffolds import RunArguments, WandBDetails, RunSummary
+from misc.wab import WandBRun
 from config.likelihood import getLikelihood
 from config.kernel import getKernel
 from config.model import getGPModel
 from config.mean import getMean
 from config.optimizer import getOptimizer
 from config.dataset import getDataset
-from evaluate_regression import evaluate_regression
+from misc.evaluate_regression import evaluate_regression
 
 
 
@@ -228,7 +228,7 @@ def run(arguments: RunArguments) -> None:
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
 
-        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n)
+        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n, arguments.svgp_strategy if arguments.gp == "svgp" else None)
         if not seed_ok:
             print(f"Seed {seed} was used already used for {str(dataset)} with {str(model)}")
             return
@@ -243,7 +243,7 @@ def run(arguments: RunArguments) -> None:
 
         standardize_test_targets = splits_std_bools[2][1]
 
-        training_duration = model.run_training(optimizer,train_y_mean, train_y_std, standardize_test_targets, iterations=iter, logger=logger)
+        training_duration = model.run_training(optimizer,train_y_mean, train_y_std, standardize_test_targets, iterations=arguments.iterations, logger=logger)
         posterior, fit_time = model.predict(test[0])
 
         if hasattr(model.covar_module, "outputscale"):

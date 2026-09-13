@@ -1,6 +1,6 @@
 from typing_extensions import Tuple
 import gpytorch
-from scaffolds import RunArguments
+from misc.scaffolds import RunArguments
 from gpytorch.means import ConstantMean
 def getMean(arguments: RunArguments)-> Tuple[gpytorch.means.Mean| None, str]:
     """Build the mean module named by ``arguments.mean``.

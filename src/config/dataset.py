@@ -6,7 +6,7 @@ from datasets.uci_proteins import UCIProtein
 from datasets.uci_wine import UCIWineQuality
 from datasets.uci_keggu import UCIKeggu
 from datasets.uci_road import UCIRoad
-from scaffolds import RunArguments
+from misc.scaffolds import RunArguments
 def getDataset(arguments: RunArguments) -> RegressionDataset | None:
     """Instantiate the dataset named by ``arguments.dataset``.
 
