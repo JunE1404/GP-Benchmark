@@ -5,7 +5,6 @@ from scaffolds import RunArguments
 from datasets.regression_dataset import RegressionDataset
 import os
 import subprocess
-from scipy import stats
 from pathlib import Path
 import json
 from sklearn.cluster import KMeans
