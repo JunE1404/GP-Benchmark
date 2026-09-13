@@ -7,16 +7,11 @@ from .regression_dataset import GetLocal, RegressionDataset
 
 
 class UCIWineQuality(RegressionDataset):
-    def __init__(self):
+    def __init__(self) -> None:
         """Load the UCI Wine Quality dataset (id=186).
 
-        Fetches the dataset from the UCI repository. All features are
-        treated as continuous.
-
-        Args:
-            features: Ignored; data is fetched from UCI.
-            targets: Ignored; data is fetched from UCI.
-            feature_types: Ignored; all features are treated as continuous.
+        Uses the local cache when present, otherwise fetches the dataset from
+        the UCI repository. All features are treated as continuous.
         """
         f_local, t_local = GetLocal(self)
         if f_local is None or t_local is None:

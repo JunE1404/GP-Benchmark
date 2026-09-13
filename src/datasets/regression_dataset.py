@@ -1,3 +1,5 @@
+from typing_extensions import List
+from jedi.api import helpers
 from abc import ABC
 from pathlib import Path
 from typing import Literal
@@ -7,6 +9,7 @@ import torch
 from numpy.typing import NDArray
 from sympy.logic.boolalg import Tuple
 from torch import Tensor, mean, std, tensor
+import helpers
 
 FeatureTypes = Literal["con", "cat"]
 
@@ -14,18 +17,28 @@ FeatureTypes = Literal["con", "cat"]
 class RegressionDataset:
     def __init__(
         self,
-        features: NDArray | Tensor = None,
-        targets: NDArray | Tensor = None,
-        feature_types: list[FeatureTypes] = None,
-        excluded_feature_indeces: list[int] = None,
-        includes_feature_indeces: list[int] = None
+        features: NDArray | Tensor | None = None,
+        targets: NDArray | Tensor | None = None,
+        feature_types: list[FeatureTypes] | None = None,
+        excluded_feature_indeces: list[int] | None = None,
+        includes_feature_indeces: list[int] | None = None
     ) -> None:
         """Initialize the dataset with features, targets, and their types.
 
         Args:
             features: Input features, either as a NumPy array or PyTorch tensor.
             targets: Target values, either as a NumPy array or PyTorch tensor.
-            feature_types: List of feature type labels ("con" for continuous, "cat" for categorical).
+            feature_types: Feature type labels, ``"con"`` for continuous and
+                ``"cat"`` for categorical, one per retained feature.
+            excluded_feature_indeces: Indices to drop. Mutually exclusive with
+                ``includes_feature_indeces``.
+            includes_feature_indeces: Indices to keep. Mutually exclusive with
+                ``excluded_feature_indeces``.
+
+        Raises:
+            Exception: If ``targets``, ``features`` or ``feature_types`` are
+                missing, if both index lists are given, or if the retained
+                feature count does not match ``feature_types``.
         """
 
         self.features = self._convert_to_tensor(features)
@@ -122,7 +135,7 @@ class RegressionDataset:
 
         return return_features, return_targets
 
-    def get_onehot_encoded_features(self):
+    def get_onehot_encoded_features(self) -> Tensor:
         """Return features with categorical columns one-hot encoded.
 
         Continuous features are kept as-is; categorical features are converted
@@ -158,11 +171,11 @@ class RegressionDataset:
 
         return return_features
 
-    def cuda(self):
+    def cuda(self) -> RegressionDataset | None:
         """Move features and targets to GPU if CUDA is available.
 
         Returns:
-            Self, to allow method chaining.
+            ``self`` when CUDA is available, otherwise ``None``.
         """
         if torch.cuda.is_available():
             self.features = self.features.cuda()
@@ -170,7 +183,7 @@ class RegressionDataset:
 
             return self
 
-    def cpu(self):
+    def cpu(self) -> RegressionDataset:
         """Move features and targets to CPU.
 
         Returns:
@@ -205,17 +218,16 @@ class RegressionDataset:
 
         return (x_means, x_stds), (y_mean, y_std)
 
-    def get_data_split(
+    def get_data_splits(
         self,
-        split_fractions: tuple[float, float, float],
-        standardize_data_splits: tuple[
-            tuple[bool, bool], tuple[bool, bool], tuple[bool, bool]
-        ],
+        split_fractions_argument: str,
+        standardize_data_splits_argument: str,
         shuffle_data: bool,
         shuffle_seed: float | None,
     ) -> tuple[
         tuple[tuple[Tensor, Tensor], tuple[Tensor, Tensor], tuple[Tensor, Tensor]],
         tuple[Tensor, Tensor],
+        List[Tuple[bool, bool]]
     ]:
         """Split the dataset into train, validation, and test sets with optional standardization.
 
@@ -224,18 +236,24 @@ class RegressionDataset:
         computed from the training split.
 
         Args:
-            split_fractions: Tuple of (train, val, test) fractions that sum to 1.
-            standardize_data_splits: For each split, a tuple of (standardize_features, standardize_targets).
+            split_fractions_argument: Comma-separated ``train,val,test``
+                fractions.
+            standardize_data_splits_argument: Comma-separated ``"y"``/``"n"``
+                flags, two per split, controlling feature/target standardization.
             shuffle_data: Whether to randomly shuffle the data before splitting.
-            shuffle_seed: Random seed for shuffling; if None, a random seed is used.
+            shuffle_seed: Random seed for shuffling; if ``None``, a random seed
+                is used.
 
         Returns:
-            Tuple of ((train_features, train_targets), (val_features, val_targets),
-                      (test_features, test_targets)).
+            Tuple of ``((train_features, train_targets),
+            (val_features, val_targets), (test_features, test_targets))``, the
+            train target statistics ``(y_mean, y_std)``, and the parsed
+            standardization flags.
 
         Raises:
             ValueError: If features or targets are empty.
         """
+        split_fractions = helpers.getDatasetSplits(self, split_fractions_argument)
         if len(self.features) == 0 or len(self.targets) == 0:
             raise ValueError(
                 f"Cannot split dataset '{self.__class__.__name__}': features or targets are empty"
@@ -269,6 +287,8 @@ class RegressionDataset:
             train_features, train_targets
         )
 
+        standardize_data_splits = helpers.parseStandardizationBools(standardize_data_splits_argument)
+
         st_train = self._standardize_data(
             train_features,
             train_targets,
@@ -297,10 +317,19 @@ class RegressionDataset:
             standardize_parts=standardize_data_splits[2],
         )
 
-        return (st_train, st_val, st_test), (t_y_mean, t_y_std)
+        return (st_train, st_val, st_test), (t_y_mean, t_y_std), standardize_data_splits
 
 
 def GetLocal(ds: RegressionDataset) -> tuple[Tensor | None, Tensor | None]:
+    """Load a dataset's tensors from the local cache.
+
+    Args:
+        ds: Dataset whose ``str()`` name keys the cache file.
+
+    Returns:
+        ``(features, targets)`` loaded from disk, or ``(None, None)`` when no
+        cached file exists.
+    """
     p_str = f"datasets/localfiles/{str(ds)}.pt"
     p = Path(p_str)
     if p.exists():
@@ -312,7 +341,14 @@ def GetLocal(ds: RegressionDataset) -> tuple[Tensor | None, Tensor | None]:
         return None, None
 
 
-def SaveLocal(ds: RegressionDataset, features: Tensor, targets: Tensor):
+def SaveLocal(ds: RegressionDataset, features: Tensor, targets: Tensor) -> None:
+    """Persist a dataset's features and targets to the local cache.
+
+    Args:
+        ds: Dataset whose ``str()`` name keys the cache file.
+        features: Feature tensor to save.
+        targets: Target tensor to save.
+    """
     p_str = f"datasets/localfiles/{str(ds)}.pt"
     p = Path(p_str)
     p.parent.mkdir(parents=True, exist_ok=True)

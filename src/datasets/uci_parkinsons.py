@@ -7,16 +7,12 @@ from .regression_dataset import GetLocal, RegressionDataset
 
 
 class UCIParkinsonsTelemonitoring(RegressionDataset):
-    def __init__(self):
+    def __init__(self) -> None:
         """Load the UCI Parkinsons Telemonitoring dataset (id=189).
 
-        Fetches the dataset from the UCI repository and assigns feature types:
-        18 continuous features and 1 categorical feature.
-
-        Args:
-            features: Ignored; data is fetched from UCI.
-            targets: Ignored; data is fetched from UCI.
-            feature_types: Ignored; types are predefined.
+        Uses the local cache when present, otherwise fetches the dataset from
+        the UCI repository. The first 18 features are continuous and the last
+        is categorical.
         """
         f_local, t_local = GetLocal(self)
         if f_local is None or t_local is None:

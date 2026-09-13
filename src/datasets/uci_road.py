@@ -8,16 +8,13 @@ import pandas as pd
 
 
 class UCIRoad(RegressionDataset):
-    def __init__(self):
-        """Load the UCI Parkinsons Telemonitoring dataset (id=189).
+    def __init__(self) -> None:
+        """Load the UCI Road dataset.
 
-        Fetches the dataset from the UCI repository and assigns feature types:
-        18 continuous features and 1 categorical feature.
-
-        Args:
-            features: Ignored; data is fetched from UCI.
-            targets: Ignored; data is fetched from UCI.
-            feature_types: Ignored; types are predefined.
+        Uses the local cache when present, otherwise reads
+        ``src/datasets/localfiles/UCIRoad.txt``. Column 1 is the target; columns
+        0, 2 and 3 are selected as features and column 0 is then dropped, so
+        the two retained features are continuous.
         """
         f_local, t_local = GetLocal(self)
         if f_local is None or t_local is None:

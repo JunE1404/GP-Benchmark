@@ -8,34 +8,44 @@ from torch.utils.data import DataLoader, TensorDataset
 from collections.abc import Callable
 from scaffolds import LogDetails
 
-from kmeans import getInducingPoints
+from helpers import getInducingPoints
 from helpers import evaluate_regression
 
 
 class SparseVariationalGP(ApproximateGP):
     def __init__(
         self,
-        strategy, 
-        strategy_seed,
-        n,
+        strategy: str,
+        strategy_seed: int,
+        n: int,
         train_data: tuple[Tensor, Tensor],
         test_data: tuple[Tensor, Tensor],
         val_data: tuple[Tensor, Tensor],
         batch_size: int,
-        likelihood,
-        kernel=None,
-        mean_module=None,
-        device="",
-    ):
-        """Initialize the Sparse Variational GP model.
+        likelihood: gpytorch.likelihoods.Likelihood,
+        kernel: gpytorch.kernels.Kernel | None = None,
+        mean_module: gpytorch.means.Mean | None = None,
+        device: str = "",
+    ) -> None:
+        """Initialize the sparse variational GP (SVGP) model.
 
         Args:
-            inducing_points: Initial inducing point locations, shape (m, n_features).
+            strategy: Inducing-point initialization method, ``"kmeans"`` or
+                ``"random"``.
+            strategy_seed: Seed used by the inducing-point initialization.
+            n: Number of inducing points.
             train_data: Tuple of (train_features, train_targets).
             test_data: Tuple of (test_features, test_targets).
             val_data: Tuple of (val_features, val_targets).
+            batch_size: Minibatch size used during training.
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
-            kernel: Optional custom kernel; defaults to ScaleKernel(RBFKernel()).
+            kernel: Covariance kernel; must be provided.
+            mean_module: Mean module; must be provided.
+            device: ``"cuda"`` moves the model and data to GPU when available.
+
+        Raises:
+            ValueError: If ``mean_module``, ``kernel`` or ``likelihood`` is
+                ``None``.
         """
 
         inducing_points = getInducingPoints(train_data[0], n, strategy=strategy, seed=strategy_seed)
@@ -75,7 +85,7 @@ class SparseVariationalGP(ApproximateGP):
             self.test_data = (test_data[0].cuda(), test_data[1].cuda())
             self.val_data = (val_data[0].cuda(), val_data[1].cuda())
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> gpytorch.distributions.MultivariateNormal:
         """Compute the prior GP distribution at input points.
 
         Args:
@@ -88,19 +98,29 @@ class SparseVariationalGP(ApproximateGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer, y_mean, y_std, standardize_test_targets, iterations, logger: Callable[[LogDetails]]):
+    def run_training(self, optimizer: torch.optim.Optimizer, y_mean: Tensor, y_std: Tensor, standardize_test_targets: bool, iterations: int, logger: Callable[[LogDetails], None]) -> float:
         """Train the SVGP model using minibatch variational inference.
 
         Optimizes kernel hyperparameters, likelihood noise, inducing point
         locations, and variational parameters by minimizing the negative
-        variational ELBO.
+        variational ELBO. The returned duration is ``start - end`` (negative),
+        matching the convention used across the benchmark.
 
         Args:
             optimizer: A PyTorch optimizer (e.g. Adam or LBFGS).
-            epochs: Number of passes through the full training dataset.
+            y_mean: Training target mean used to un-standardize metrics.
+            y_std: Training target standard deviation used to un-standardize metrics.
+            standardize_test_targets: Whether the test targets are standardized.
+            iterations: Number of passes (epochs) through the training data.
+            logger: Callback invoked with a :class:`LogDetails` after each epoch.
+
+        Returns:
+            Negative wall-clock training duration in seconds.
         """
 
-        def _compute_loss(mll, x_batch, y_batch):
+        time_start = time.time()
+
+        def _compute_loss(mll: gpytorch.mlls.VariationalELBO, x_batch: Tensor, y_batch: Tensor) -> Tensor:
             """Compute the negative variational ELBO loss for a batch."""
             output = self(x_batch)
             return -mll(output, y_batch)
@@ -125,7 +145,7 @@ class SparseVariationalGP(ApproximateGP):
                 for x_batch, y_batch in train_loader:
                     if is_lbfgs:
 
-                        def closure():
+                        def closure() -> Tensor:
                             """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
                             optimizer.zero_grad()
                             loss = _compute_loss(mll, x_batch, y_batch)
@@ -182,12 +202,18 @@ class SparseVariationalGP(ApproximateGP):
                 torch.cuda.empty_cache()
 
         self.trained = True
+        time_end = time.time()
+        return time_start-time_end
 
-    def predict(self, x):
+    def predict(self, x: Tensor) -> tuple[gpytorch.distributions.MultivariateNormal, float]:
         """Get the posterior distribution over test points after training.
 
+        Args:
+            x: Input tensor of shape (n_samples, n_features).
+
         Returns:
-            MultivariateNormal distribution over test targets.
+            Tuple of the posterior distribution and the negative wall-clock
+            prediction duration in seconds.
 
         Raises:
             ValueError: If the model has not been trained yet.
@@ -196,13 +222,16 @@ class SparseVariationalGP(ApproximateGP):
             raise ValueError(
                 "The model needs to be trained first. run .run_training(optimizer, iterations)"
             )
+        time_start = time.time()
         if torch.cuda.is_available():
             x = x.cuda()
         self.eval()
         self.likelihood.eval()
         with torch.no_grad():
             posterior = self.likelihood(self(x))
-        return posterior
+        time_end = time.time()
+        return posterior, time_start-time_end
 
     def __str__(self) -> str:
+        """Return the display name used in result file paths."""
         return "SVGP"

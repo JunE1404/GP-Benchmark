@@ -9,16 +9,12 @@ import pandas as pd
 
 
 class UCIKeggu(RegressionDataset):
-    def __init__(self):
-        """Load the UCI Parkinsons Telemonitoring dataset (id=189).
+    def __init__(self) -> None:
+        """Load the KEGG Undersampling dataset used for the benchmark.
 
-        Fetches the dataset from the UCI repository and assigns feature types:
-        18 continuous features and 1 categorical feature.
-
-        Args:
-            features: Ignored; data is fetched from UCI.
-            targets: Ignored; data is fetched from UCI.
-            feature_types: Ignored; types are predefined.
+        Uses the local cache when present, otherwise reads
+        ``src/datasets/localfiles/KEGGu.data``, taking columns 1-24 as
+        continuous features and column 26 as the target.
         """
         f_local, t_local = GetLocal(self)
         if f_local is None or t_local is None:

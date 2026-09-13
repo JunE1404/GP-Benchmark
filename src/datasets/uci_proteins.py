@@ -2,14 +2,12 @@ from .regression_dataset import GetLocal, RegressionDataset
 import pandas as pd
 
 class UCIProtein(RegressionDataset):
-    def __init__(self):
-        """Load the UCI Physicochemical Properties of Protein Tertiary Structure dataset (id=265).
+    def __init__(self) -> None:
+        """Load the UCI Protein Tertiary Structure dataset (id=265).
 
-
-        Args:
-            features: Ignored; data is fetched from UCI.
-            targets: Ignored; data is fetched from UCI.
-            feature_types: Ignored; all features are treated as continuous.
+        Uses the local cache when present, otherwise reads
+        ``src/datasets/localfiles/CASP.csv``; column 0 is the target and the
+        remaining columns are continuous features.
         """
         f_local, t_local = GetLocal(self)
         if f_local is None or t_local is None:

@@ -230,3 +230,6 @@ gp-bench
 /results
 
 *.png
+
+/dissertation
+/misc

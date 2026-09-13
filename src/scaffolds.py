@@ -1,5 +1,6 @@
 
 
+from click import Path
 from typing_extensions import List
 from typing_extensions import Optional
 from datasets.regression_dataset import RegressionDataset
@@ -8,6 +9,8 @@ from dataclasses import dataclass
 
 @dataclass
 class RunArguments:
+    """Resolved configuration for a single benchmark run."""
+
     device: str
     dataset: str
     split: str
@@ -30,6 +33,8 @@ class RunArguments:
 
 @dataclass
 class EvalGroupArguments:
+    """Filters used to select result files for evaluation and plotting."""
+
     dataset: Optional[List[RegressionDataset]]
     gp: Optional[str] = None
     kernel: Optional[str] = None
@@ -40,12 +45,16 @@ class EvalGroupArguments:
 
 @dataclass
 class WandBDetails:
+    """Entity, project and run name for a Weights & Biases run."""
+
     entity: str
     project: str
     name: str
 
 @dataclass 
 class LogDetails:
+    """Metrics captured for a single training iteration."""
+
     iteration: int
     loss: float
     lengthscale: float
@@ -63,6 +72,8 @@ class LogDetails:
 
 @dataclass 
 class RunSummary:
+    """Final aggregate test metrics for a run."""
+
     MAE: float
     NLL: float
     PICP50: float
@@ -71,3 +82,12 @@ class RunSummary:
     RMSE: float
     training_time: float
     eval_time: float
+
+
+@dataclass
+class ResultFileDetails:
+    """Base name and output paths for a run's result and log files."""
+
+    baseName: str
+    resultFilePath: Path
+    logFilePath: Path
