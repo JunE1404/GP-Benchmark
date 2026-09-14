@@ -1,3 +1,4 @@
+from regressors.regressor import Regressor
 from config.kernel import getKernel
 from config import likelihood
 import argparse
@@ -220,6 +221,8 @@ def run(arguments: RunArguments) -> None:
         model = getGPModel(arguments, train, val, test, likelihood, kernel, mean)
         if model is None:
             raise ValueError(f"Unknown GP model: '{arguments.gp}'")
+        if not isinstance(model,Regressor):
+            raise ValueError(f"Model is not of class Regressor and might not implement needed functions: '{arguments.gp}'")
 
         optimizer, optimizer_name = getOptimizer(arguments, model)
         if optimizer is None:

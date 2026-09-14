@@ -1,3 +1,4 @@
+from regressors.regressor import Regressor
 import contextlib
 
 import time
@@ -13,7 +14,7 @@ class LossNotFiniteError(RuntimeError):
     """Raised when the training loss becomes non-finite (NaN/Inf)."""
 
 
-class ExactGPCGModel(gpytorch.models.ExactGP):
+class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
     train_data: tuple[Tensor, Tensor]
     test_data: tuple[Tensor, Tensor]
     trained: bool

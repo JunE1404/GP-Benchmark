@@ -1,3 +1,4 @@
+from regressors.regressor import Regressor
 import time
 import contextlib
 import math
@@ -92,7 +93,7 @@ def _patch_keops_covar_funcs() -> None:
 _patch_keops_covar_funcs()
 #Credit AI Agent, Deepseek V4-Flash
 
-class CAGPModel(ComputationAwareGP):
+class CAGPModel(ComputationAwareGP, Regressor):
     train_data: tuple[Tensor, Tensor]
     test_data: tuple[Tensor, Tensor]
     val_data: tuple[Tensor, Tensor]

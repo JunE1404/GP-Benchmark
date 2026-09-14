@@ -7,12 +7,13 @@ from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 from collections.abc import Callable
 from misc.scaffolds import LogDetails
+from regressors.regressor import Regressor
 
 from misc.helpers import getInducingPoints
 from misc.evaluate_regression import evaluate_regression
 
 
-class SparseVariationalGP(ApproximateGP):
+class SparseVariationalGP(ApproximateGP, Regressor):
     def __init__(
         self,
         strategy: str,
@@ -135,71 +136,70 @@ class SparseVariationalGP(ApproximateGP):
         )
 
         is_lbfgs = isinstance(optimizer, torch.optim.LBFGS)
-        with gpytorch.settings._linalg_dtype_cholesky(torch.float32):
-            for i in range(iterations):
-                epoch_loss = 0
-                train_loader = DataLoader(
-                    train_dataset, batch_size=self.batch_size, shuffle=True
-                ) 
-                start_time_it = time.perf_counter()
-                for x_batch, y_batch in train_loader:
-                    if is_lbfgs:
+        for i in range(iterations):
+            epoch_loss = 0
+            train_loader = DataLoader(
+                train_dataset, batch_size=self.batch_size, shuffle=True
+            ) 
+            start_time_it = time.perf_counter()
+            for x_batch, y_batch in train_loader:
+                if is_lbfgs:
 
-                        def closure() -> Tensor:
-                            """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
-                            optimizer.zero_grad()
-                            loss = _compute_loss(mll, x_batch, y_batch)
-                            loss.backward()
-                            return loss
-
-                        loss = optimizer.step(closure)
-                    else:
+                    def closure() -> Tensor:
+                        """Closure for LBFGS that zeroes gradients, computes loss, and backpropagates."""
                         optimizer.zero_grad()
                         loss = _compute_loss(mll, x_batch, y_batch)
                         loss.backward()
-                        optimizer.step()
-                    
-                    epoch_loss += loss.item()
+                        return loss
 
-
-                
-                end_step_time = time.perf_counter()
-
-                x = self.test_data[0]
-                if next(self.parameters()).is_cuda:
-                    x = x.cuda()
-                self.eval()
-                self.likelihood.eval()
-                with torch.no_grad():
-                    posterior = self.likelihood(self(x))
-
-                pst_t = posterior.mean.detach().cpu()
-                pred_std = posterior.stddev.detach().cpu()
-
-                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
-                end_iter_time = time.perf_counter()
-                if hasattr(self.covar_module, "outputscale"):
-                        outputscale = self.covar_module.outputscale.item()
+                    loss = optimizer.step(closure)
                 else:
-                    outputscale = 1
-                logdetails = LogDetails(iteration=i,
-                                        loss=epoch_loss/len(train_loader),
-                                        lengthscale=LScale,
-                                        outputscale=outputscale,
-                                        likelyhood_noise=self.likelihood.noise.item(),
-                                        test_MAE=MAE,
-                                        test_NLL=NLL,
-                                        test_PICP50=PICP[0.5],
-                                        test_PICP90=PICP[0.9],
-                                        test_PICP95=PICP[0.95],
-                                        test_RMSE=RMSE,
-                                    it_time_training=end_step_time-start_time_it,
-                                    it_time=end_iter_time-start_time_it
-                )
-                logger(logdetails)
-                self.train()
-                self.likelihood.train()
-                torch.cuda.empty_cache()
+                    optimizer.zero_grad()
+                    loss = _compute_loss(mll, x_batch, y_batch)
+                    loss.backward()
+                    optimizer.step()
+                
+                epoch_loss += loss.item()
+
+
+            
+            end_step_time = time.perf_counter()
+
+            x = self.test_data[0]
+            if next(self.parameters()).is_cuda:
+                x = x.cuda()
+            self.eval()
+            self.likelihood.eval()
+            with torch.no_grad():
+                posterior = self.likelihood(self(x))
+
+            pst_t = posterior.mean.detach().cpu()
+            pred_std = posterior.stddev.detach().cpu()
+
+            MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
+            end_iter_time = time.perf_counter()
+            if hasattr(self.covar_module, "outputscale"):
+                    outputscale = self.covar_module.outputscale.item()
+            else:
+                outputscale = 1
+            logdetails = LogDetails(iteration=i,
+                                    loss=epoch_loss/len(train_loader),
+                                    lengthscale=LScale,
+                                    outputscale=outputscale,
+                                    likelyhood_noise=self.likelihood.noise.item(),
+                                    test_MAE=MAE,
+                                    test_NLL=NLL,
+                                    test_PICP50=PICP[0.5],
+                                    test_PICP90=PICP[0.9],
+                                    test_PICP95=PICP[0.95],
+                                    test_RMSE=RMSE,
+                                it_time_training=end_step_time-start_time_it,
+                                it_time=end_iter_time-start_time_it
+            )
+            logger(logdetails)
+            self.train()
+            self.likelihood.train()
+            torch.cuda.empty_cache()
 
         self.trained = True
         time_end = time.time()

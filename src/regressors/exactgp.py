@@ -1,3 +1,4 @@
+from regressors.regressor import Regressor
 import gpytorch
 import torch
 import time
@@ -7,7 +8,7 @@ from collections.abc import Callable, Iterator
 from misc.scaffolds import LogDetails
 from misc.evaluate_regression import evaluate_regression
 
-class ExactGPModel(gpytorch.models.ExactGP):
+class ExactGPModel(gpytorch.models.ExactGP, Regressor):
     train_data: tuple[Tensor, Tensor]
     test_data: tuple[Tensor, Tensor]
     trained: bool
