@@ -1,0 +1,31 @@
+{
+  "dataset": "UCIKeggu",
+  "approximation_size": 1024,
+  "fulldata": false,
+  "modelType": "ExactGP",
+  "inducing_point_method": null,
+  "kernel": "RBFKeops",
+  "trained_output_scale": true,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "LBFGS_MaxIter_1",
+  "learningrate": 0,
+  "shuffledData": true,
+  "seed": 44,
+  "evalData": {
+    "MAE": 0.024401331320405006,
+    "NLL": -3.806227684020996,
+    "PICP50": 0.7974374890327454,
+    "PICP90": 0.9333435297012329,
+    "PICP95": 0.9463087320327759,
+    "RMSE": 0.06751064211130142,
+    "Lengthscale": 52806.10546875,
+    "Output_scale": 1.6960909366607666,
+    "Noise_variance": 9.999999747378752e-05
+  },
+  "trainingTime": -67.65373873710632,
+  "evalTime": -0.015290260314941406,
+  "device": "cuda",
+  "git_commit_hash": "0a82267b8309eb8406f062f2a4d4b8f2914875af",
+  "date": "13-09-2026_18-31-02"
+}
