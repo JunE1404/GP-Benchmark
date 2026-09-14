@@ -228,7 +228,7 @@ def run(arguments: RunArguments) -> None:
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
 
-        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n, arguments.svgp_strategy if arguments.gp == "svgp" else None)
+        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n, kernel_name, arguments.svgp_strategy if arguments.gp == "svgp" else None)
         if not seed_ok:
             print(f"Seed {seed} was used already used for {str(dataset)} with {str(model)}")
             return
