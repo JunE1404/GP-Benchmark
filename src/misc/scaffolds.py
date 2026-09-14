@@ -48,6 +48,7 @@ class EvalGroupArguments:
     seed: Optional[int] = None
     svgp_strategy: Optional[str] = None
     train_signal_variance: Optional[bool] = None
+    n: Optional[int] = None
 
 @dataclass
 class WandBDetails:
