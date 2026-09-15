@@ -1,19 +1,23 @@
+from misc.scaffolds import DatasetData
 import torch
 import gpytorch
 from scipy import stats
 from torch import Tensor
 
-def evaluate_regression(model: gpytorch.models.GP, predictions: gpytorch.distributions.MultivariateNormal | tuple[Tensor, Tensor], targets: Tensor, y_mean: Tensor | None = None, y_std: Tensor | None = None, targets_standardized: bool = True, trained_output_scale: bool = True, picp_levels: tuple[float, ...] = (0.5, 0.9, 0.95)) -> tuple[float, float, dict[float, float], float, float]:
-    """Compute regression metrics from predictions and targets.
+
+def evaluate_regression(model: gpytorch.models.GP, predictions: gpytorch.distributions.MultivariateNormal | tuple[Tensor, Tensor], datasetData: DatasetData,picp_levels: tuple[float, ...] = (0.5, 0.9, 0.95)) -> tuple[float, float, dict[float, float], float, float]:
+    """Compute regression metrics from predictions and the dataset's test split.
+
+    Predictions and targets are brought back to raw space independently:
+    predictions are un-standardized when the *train* targets were standardized
+    (that is the space the model was trained in), and targets are un-standardized
+    when the *test* targets were standardized. Both then live in raw space.
 
     Args:
         model: GP model whose lengthscale is reported.
         predictions: Posterior distribution, or a ``(means, stds)`` tuple.
-        targets: Ground-truth target values.
-        y_mean: Optional target mean used to invert standardization.
-        y_std: Optional target standard deviation used to invert standardization.
-        targets_standardized: Whether ``targets`` are in standardized space and
-            therefore need un-standardizing alongside the predictions.
+        datasetData: Dataset splits, train target statistics and the
+            per-split standardization flags. Test targets come from here.
         trained_output_scale: Unused; retained for call-site compatibility.
         picp_levels: Coverage levels for which PICP is computed.
 
@@ -27,16 +31,19 @@ def evaluate_regression(model: gpytorch.models.GP, predictions: gpytorch.distrib
     else:
         means, stds = predictions
 
+    y_mean = datasetData.train_split_target_statistics.mean.cpu()
+    y_std = datasetData.train_split_target_statistics.std.cpu()
+    targets = datasetData.test_data.targets
+
     means = means.cpu()
     targets = targets.cpu()
     stds = stds.cpu()
 
-    # Force, assume that data is standardized
-    if y_mean is not None and y_std is not None:
+    if datasetData.split_standardizations.train.targets:
         means = means * y_std + y_mean
         stds = stds * y_std
-        if targets_standardized:          # <- the gate
-            targets = targets * y_std + y_mean
+    if datasetData.split_standardizations.test.targets:
+        targets = targets * y_std + y_mean
 
     mae = torch.mean(torch.abs(means - targets)).item()
     nll = -torch.distributions.Normal(means, stds).log_prob(targets).mean().item()

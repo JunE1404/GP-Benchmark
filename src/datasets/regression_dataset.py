@@ -1,3 +1,7 @@
+from misc.scaffolds import SplitStatistics
+from misc.scaffolds import Split
+from misc.scaffolds import DatasetData
+from misc.scaffolds import StandardisationBools
 from typing_extensions import List
 from jedi.api import helpers
 from abc import ABC
@@ -110,8 +114,8 @@ class RegressionDataset:
         f_stds: Tensor,
         t_mean: float,
         t_std: float,
-        standardize_parts: tuple[bool, bool],
-    ) -> tuple[Tensor, Tensor]:
+        standardize_parts: StandardisationBools,
+    ) -> Split:
         """Standardize features and/or targets using provided statistics.
 
         Args:
@@ -121,21 +125,21 @@ class RegressionDataset:
             f_stds: Feature standard deviations for standardization.
             t_mean: Target mean for standardization.
             t_std: Target standard deviation for standardization.
-            standardize_parts: Tuple of (standardize_features, standardize_targets) flags.
+            standardize_parts: Feature/target standardization flags.
 
         Returns:
-            Tuple of (standardized_features, standardized_targets).
+            ``Split`` of (standardized_features, standardized_targets).
         """
         return_features = i_features
         return_targets = i_targets
-        if standardize_parts[0]:
+        if standardize_parts.features:
             return_features = (i_features - f_means) / f_stds
-        if standardize_parts[1]:
+        if standardize_parts.targets:
             return_targets = (i_targets - t_mean) / t_std
 
-        return return_features, return_targets
+        return Split(return_features, return_targets)
 
-    def get_onehot_encoded_features(self) -> Tensor:
+    def _get_onehot_encoded_features(self) -> Tensor:
         """Return features with categorical columns one-hot encoded.
 
         Continuous features are kept as-is; categorical features are converted
@@ -198,7 +202,7 @@ class RegressionDataset:
         self,
         i_features: Tensor,
         i_targets: Tensor,
-    ) -> tuple[tuple[Tensor, Tensor], tuple[Tensor, Tensor]]:
+    ) -> tuple[SplitStatistics, SplitStatistics]:
         """Compute mean and standard deviation of features and targets.
 
         Continuous features are used for the feature statistics (one-hot
@@ -216,7 +220,7 @@ class RegressionDataset:
         y_mean = mean(i_targets, dim=0)
         y_std = std(i_targets, dim=0)
 
-        return (x_means, x_stds), (y_mean, y_std)
+        return SplitStatistics(mean=x_means, std=x_stds), SplitStatistics(mean=y_mean, std=y_std)
 
     def get_data_splits(
         self,
@@ -224,11 +228,7 @@ class RegressionDataset:
         standardize_data_splits_argument: str,
         shuffle_data: bool,
         shuffle_seed: float | None,
-    ) -> tuple[
-        tuple[tuple[Tensor, Tensor], tuple[Tensor, Tensor], tuple[Tensor, Tensor]],
-        tuple[Tensor, Tensor],
-        List[Tuple[bool, bool]]
-    ]:
+    ) -> DatasetData:
         """Split the dataset into train, validation, and test sets with optional standardization.
 
         The data is first one-hot encoded, then split according to the provided
@@ -259,7 +259,7 @@ class RegressionDataset:
                 f"Cannot split dataset '{self.__class__.__name__}': features or targets are empty"
             )
         rng = np.random.RandomState(shuffle_seed)
-        features = self.get_onehot_encoded_features()
+        features = self._get_onehot_encoded_features()
         targets = self.targets
 
         n = features.shape[0]
@@ -283,7 +283,7 @@ class RegressionDataset:
         test_features = features[test_idx]
         test_targets = targets[test_idx]
 
-        (t_x_means, t_x_stds), (t_y_mean, t_y_std) = self._get_dataset_statistics(
+        x_stats, y_stats = self._get_dataset_statistics(
             train_features, train_targets
         )
 
@@ -292,32 +292,31 @@ class RegressionDataset:
         st_train = self._standardize_data(
             train_features,
             train_targets,
-            f_means=t_x_means,
-            f_stds=t_x_stds,
-            t_mean=t_y_mean,
-            t_std=t_y_std,
-            standardize_parts=standardize_data_splits[0],
+            f_means=x_stats.mean,
+            f_stds=x_stats.std,
+            t_mean=y_stats.mean,
+            t_std=y_stats.std,
+            standardize_parts=standardize_data_splits.train,
         )
         st_val = self._standardize_data(
             val_features,
             val_targets,
-            f_means=t_x_means,
-            f_stds=t_x_stds,
-            t_mean=t_y_mean,
-            t_std=t_y_std,
-            standardize_parts=standardize_data_splits[1],
+            f_means=x_stats.mean,
+            f_stds=x_stats.std,
+            t_mean=y_stats.mean,
+            t_std=y_stats.std,
+            standardize_parts=standardize_data_splits.val,
         )
         st_test = self._standardize_data(
             test_features,
             test_targets,
-            f_means=t_x_means,
-            f_stds=t_x_stds,
-            t_mean=t_y_mean,
-            t_std=t_y_std,
-            standardize_parts=standardize_data_splits[2],
+            f_means=x_stats.mean,
+            f_stds=x_stats.std,
+            t_mean=y_stats.mean,
+            t_std=y_stats.std,
+            standardize_parts=standardize_data_splits.test,
         )
-
-        return (st_train, st_val, st_test), (t_y_mean, t_y_std), standardize_data_splits
+        return DatasetData(train_data=st_train, val_data=st_val, test_data=st_test,train_split_target_statistics=y_stats, split_standardizations=standardize_data_splits)
 
 
 def GetLocal(ds: RegressionDataset) -> tuple[Tensor | None, Tensor | None]:

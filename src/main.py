@@ -9,14 +9,15 @@ from datetime import datetime
 
 import misc.helpers as helpers
 from misc.scaffolds import RunArguments, WandBDetails, RunSummary
-from misc.wab import WandBRun
+from logging.wab import WandBRun
 from config.likelihood import getLikelihood
 from config.kernel import getKernel
 from config.model import getGPModel
 from config.mean import getMean
 from config.optimizer import getOptimizer
 from config.dataset import getDataset
-from misc.evaluate_regression import evaluate_regression
+from config.logging import getLogger
+from eval.evaluate_regression import evaluate_regression
 
 
 
@@ -45,6 +46,10 @@ parser.add_argument("-r", "--shuffle", action="store_true")
 parser.add_argument("-bs", "--svgp_batch_size", type=int)
 parser.add_argument("-str", "--svgp_strategy", type=str)
 parser.add_argument("-os", "--trainable_output_scale", action="store_true")
+parser.add_argument("-w", "--wandb", action="store_true")
+parser.add_argument("-cl", "--custom_logger", action="store_true")
+parser.add_argument("-wp", "--wandb_project", type=str, default="GP Test Runs")
+parser.add_argument("-we", "--wandb_entity", type=str, default="GP-Bench-Thesis")
 
 args = parser.parse_args()
 
@@ -96,6 +101,10 @@ def get_from_args() -> RunArguments:
     batch_size = args.svgp_batch_size
     train_sig_var = args.trainable_output_scale
 
+    wandb_on = args.wandb
+    wandb_project = args.wandb_project
+    wandb_entity = args.wandb_entity
+
     return RunArguments(
         approximation_size=app_size,
         dataset=s,
@@ -114,7 +123,10 @@ def get_from_args() -> RunArguments:
         standardize=std_select,
         svgp_strategy=svgp_strat,
         batch_size=batch_size,
-        train_signal_variance=train_sig_var
+        train_signal_variance=train_sig_var,
+        wandb=wandb_on,
+        wandb_project=wandb_project,
+        wandb_entity=wandb_entity,
     )
 
 
@@ -161,7 +173,10 @@ def get_from_config(path: str) -> RunArguments:
             standardize=data["data_standartization"],
             svgp_strategy=svgp_strategy,
             batch_size=batch_size,
-            train_signal_variance=data["trainable_output_scale"]
+            train_signal_variance=data["trainable_output_scale"],
+            wandb=bool(data.get("wandb", False)),
+            wandb_project=data.get("wandb_project", "GP Test Runs"),
+            wandb_entity=data.get("wandb_entity", "GP-Bench-Thesis"),
         )
 
 
@@ -188,29 +203,32 @@ def run(arguments: RunArguments) -> None:
         shuffle = arguments.shuffle
         seed = arguments.seed
 
-        (train, val, test), (train_y_mean, train_y_std), splits_std_bools = dataset.get_data_splits( 
+        dataset_data = dataset.get_data_splits( 
             split_fractions_argument=arguments.split,
             standardize_data_splits_argument=arguments.standardize,
             shuffle_data=shuffle,
             shuffle_seed=seed,
         )
+        train = dataset_data.train_data
+        val = dataset_data.val_data
+        test = dataset_data.test_data
 
         device = arguments.device
         lr = arguments.learningrate
 
         n = arguments.approximation_size
         if n is None or n <= 0:
-            n = train[0].shape[0]
+            n = train.features.shape[0]
         else:
-            if n > train[0].shape[0]:
-                n = train[0].shape[0]
+            if n > train.features.shape[0]:
+                n = train.features.shape[0]
 
 
         likelihood, likelihood_name = getLikelihood(arguments)
         if likelihood is None:
             raise ValueError(f"Unknown likelihood: '{arguments.likelyhood}'")
 
-        kernel, kernel_name = getKernel(arguments, train[0].shape[1])
+        kernel, kernel_name = getKernel(arguments, train.features.shape[1])
         if kernel is None:
             raise ValueError(f"Unknown kernel: '{arguments.kernel}'")
 
@@ -218,7 +236,7 @@ def run(arguments: RunArguments) -> None:
         if mean is None:
             raise ValueError(f"Unknown mean: '{arguments.mean}'")
 
-        model = getGPModel(arguments, train, val, test, likelihood, kernel, mean)
+        model = getGPModel(arguments, dataset_data, likelihood, kernel, mean)
         if model is None:
             raise ValueError(f"Unknown GP model: '{arguments.gp}'")
         if not isinstance(model,Regressor):
@@ -239,22 +257,26 @@ def run(arguments: RunArguments) -> None:
         result_file_details = helpers.getResultFileDetails(arguments, str(dataset), str(model), kernel_name, optimizer_name, datetime_str)
 
 
-        run_name = f"{str(model)}_{str(dataset)}_{result_file_details.baseName}"
-        wandb_details = WandBDetails(entity="GP-Bench-Thesis", project="GP Test Runs", name=run_name)
-        wandb_run = WandBRun(wandb_details, arguments, result_file_details.logFilePath)
-        logger = wandb_run.log
+        if arguments.wandb:
+            run_name = f"{str(model)}_{str(dataset)}_{result_file_details.baseName}"
+            wandb_details = WandBDetails(entity=arguments.wandb_entity, project=arguments.wandb_project, name=run_name)
+            wandb_run = WandBRun(wandb_details, arguments, result_file_details.logFilePath)
+            if arguments.custom_logger:
+                logger = getLogger()
+            else:
+                logger = wandb_run.log
+        else:
+            logger = getLogger()
 
-        standardize_test_targets = splits_std_bools[2][1]
-
-        training_duration = model.run_training(optimizer,train_y_mean, train_y_std, standardize_test_targets, iterations=arguments.iterations, logger=logger)
-        posterior, fit_time = model.predict(test[0])
+        training_duration = model.run_training(optimizer, arguments.iterations, logger)
+        posterior, fit_time = model.predict(test.features)
 
         if hasattr(model.covar_module, "outputscale"):
             outputscale_res = model.covar_module.outputscale.item()
         else:
             outputscale_res = 1
 
-        ev_data = evaluate_regression(model,posterior, test[1], train_y_mean, train_y_std, standardize_test_targets, arguments.train_signal_variance)
+        ev_data = evaluate_regression(model, posterior, datasetData=dataset_data)
         
         noise_variance = model.likelihood.noise.item()
 
@@ -272,7 +294,15 @@ def run(arguments: RunArguments) -> None:
             "learningrate": lr,
             "shuffledData": shuffle,
             "seed": seed,
-            "evalData": {"MAE": ev_data[0], "NLL":ev_data[1], "PICP50":ev_data[2][0.5],"PICP90":ev_data[2][0.9],"PICP95":ev_data[2][0.95], "RMSE":ev_data[3], "Lengthscale":ev_data[4], "Output_scale": outputscale_res,"Noise_variance": noise_variance},
+            "evalData": {"MAE": ev_data[0], 
+                         "NLL":ev_data[1], 
+                         "PICP50":ev_data[2][0.5],
+                         "PICP90":ev_data[2][0.9],
+                         "PICP95":ev_data[2][0.95], 
+                         "RMSE":ev_data[3], 
+                         "Lengthscale":ev_data[4], 
+                         "Output_scale": outputscale_res,
+                         "Noise_variance": noise_variance},
             "trainingTime": training_duration,
             "evalTime": fit_time,
             "device": device,
@@ -280,10 +310,19 @@ def run(arguments: RunArguments) -> None:
             "date": datetime_str,
         }
 
-        summary = RunSummary(MAE=ev_data[0], NLL=ev_data[1], PICP50=ev_data[2][0.5],PICP90=ev_data[2][0.9],PICP95=ev_data[2][0.95], RMSE=ev_data[3], training_time=training_duration, eval_time=fit_time)
-        
-        wandb_run.summarize(summary)
-        wandb_run.finish()
+        if arguments.wandb:
+            summary = RunSummary(MAE=ev_data[0],
+                                 NLL=ev_data[1], 
+                                 PICP50=ev_data[2][0.5],
+                                 PICP90=ev_data[2][0.9],
+                                 PICP95=ev_data[2][0.95], 
+                                 RMSE=ev_data[3], 
+                                 training_time=training_duration, 
+                                 eval_time=fit_time)
+
+            wandb_run.summarize(summary)
+            wandb_run.finish()
+
         with open(result_file_details.resultFilePath, "w") as f:
             json.dump(eval, f, indent=2)
 

@@ -1,3 +1,5 @@
+from misc.scaffolds import DatasetData
+from misc.scaffolds import Split
 from regressors.regressor import Regressor
 import time
 import contextlib
@@ -14,7 +16,7 @@ from gpytorch.models import ComputationAwareGP
 from gpytorch.mlls import ComputationAwareELBO
 from collections.abc import Callable, Iterator
 from misc.scaffolds import LogDetails
-from misc.evaluate_regression import evaluate_regression
+from eval.evaluate_regression import evaluate_regression
 
 
 def _patch_keops_covar_funcs() -> None:
@@ -94,16 +96,11 @@ _patch_keops_covar_funcs()
 #Credit AI Agent, Deepseek V4-Flash
 
 class CAGPModel(ComputationAwareGP, Regressor):
-    train_data: tuple[Tensor, Tensor]
-    test_data: tuple[Tensor, Tensor]
-    val_data: tuple[Tensor, Tensor]
-    trained: bool
+    datasetData: DatasetData
 
     def __init__(
         self,
-        train_data: tuple[Tensor, Tensor],
-        test_data: tuple[Tensor, Tensor],
-        val_data: tuple[Tensor, Tensor],
+        dataset: DatasetData,
         projection_dim: int,
         likelihood: None | Likelihood,
         kernel: gpytorch.kernels.Kernel | None = None,
@@ -113,9 +110,8 @@ class CAGPModel(ComputationAwareGP, Regressor):
         """Initialize the computation-aware GP (CAGP) model.
 
         Args:
-            train_data: Tuple of (train_features, train_targets).
-            test_data: Tuple of (test_features, test_targets).
-            val_data: Tuple of (val_features, val_targets).
+            dataset: Dataset splits plus train target statistics and
+                standardization flags.
             projection_dim: Projection dimension / number of actions used by the
                 computation-aware ELBO.
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
@@ -127,9 +123,13 @@ class CAGPModel(ComputationAwareGP, Regressor):
             ValueError: If ``mean_module``, ``kernel`` or ``likelihood`` is
                 ``None``.
         """
+        self.datasetData = dataset
+        train_data  = self.datasetData.train_data
+        val_data = self.datasetData.val_data
+        test_data = self.datasetData.test_data
         super(CAGPModel, self).__init__(
-            train_inputs=train_data[0],
-            train_targets=train_data[1],
+            train_inputs=dataset.train_data.features,
+            train_targets=dataset.train_data.targets,
             mean_module=mean_module,
             covar_module=kernel,
             likelihood=likelihood,
@@ -155,9 +155,10 @@ class CAGPModel(ComputationAwareGP, Regressor):
         if device == "cuda" and torch.cuda.is_available():
             self.to("cuda")
             self.likelihood = likelihood.cuda()
-            self.train_data = (train_data[0].cuda(), train_data[1].cuda())
-            self.test_data = (test_data[0].cuda(), test_data[1].cuda())
-            self.val_data = (val_data[0].cuda(), val_data[1].cuda())
+            self.datasetData = self.datasetData.to("cuda")
+            self.train_data = (self.datasetData.train_data.features, self.datasetData.train_data.targets)
+            self.test_data = (self.datasetData.test_data.features, self.datasetData.test_data.targets)
+            self.val_data = (self.datasetData.val_data.features, self.datasetData.val_data.targets)
 
     def __str__(self) -> str:
         """Return the display name used in result file paths."""
@@ -183,7 +184,7 @@ class CAGPModel(ComputationAwareGP, Regressor):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer: torch.optim.Optimizer, y_mean: Tensor, y_std: Tensor, standardize_test_targets: bool, iterations: int, logger: Callable[[LogDetails], None]) -> float:
+    def run_training(self, optimizer: torch.optim.Optimizer,iterations: int, logger: Callable[[LogDetails], None]) -> float:
         """Train the CAGP model with the computation-aware ELBO.
 
         Each iteration takes a gradient step on the training split and logs
@@ -192,9 +193,6 @@ class CAGPModel(ComputationAwareGP, Regressor):
 
         Args:
             optimizer: A PyTorch optimizer (e.g. Adam or LBFGS).
-            y_mean: Training target mean used to un-standardize metrics.
-            y_std: Training target standard deviation used to un-standardize metrics.
-            standardize_test_targets: Whether the test targets are standardized.
             iterations: Number of optimization iterations.
             logger: Callback invoked with a :class:`LogDetails` after each iteration.
 
@@ -246,7 +244,7 @@ class CAGPModel(ComputationAwareGP, Regressor):
                 pst_t = posterior.mean.detach().cpu()
                 pred_std = posterior.stddev.detach().cpu()
 
-                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self,posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
+                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, datasetData=self.datasetData)
 
                 end_iter_time = time.perf_counter()
                 if hasattr(self.covar_module, "outputscale"):
@@ -274,7 +272,7 @@ class CAGPModel(ComputationAwareGP, Regressor):
 
             self.trained = True
             time_end = time.time()
-            return time_start-time_end
+            return time_end -time_start
 
     def predict(self, x: Tensor) -> tuple[gpytorch.distributions.MultivariateNormal, float]:
         """Get the posterior distribution over test points after training.

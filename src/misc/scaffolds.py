@@ -1,6 +1,6 @@
 
 
-from __future__ import annotations
+from torch.fft import Tensor
 
 from typing import TYPE_CHECKING
 
@@ -35,6 +35,10 @@ class RunArguments:
     svgp_strategy: str
     batch_size: int
     train_signal_variance: bool
+    wandb: bool
+    wandb_project: str
+    wandb_entity: str
+    custom_logger: bool
 
 
 @dataclass
@@ -98,3 +102,51 @@ class ResultFileDetails:
     baseName: str
     resultFilePath: Path
     logFilePath: Path
+
+@dataclass 
+class Split:
+    features: Tensor
+    targets: Tensor
+
+@dataclass
+class SplitStatistics:
+    mean: Tensor
+    std: Tensor
+
+@dataclass 
+class StandardisationBools:
+    features: bool
+    targets: bool
+
+@dataclass
+class SplitStandardisation:
+    train: StandardisationBools
+    val: StandardisationBools
+    test:  StandardisationBools
+
+@dataclass
+class DatasetData:
+    train_data: Split
+    val_data: Split
+    test_data: Split
+    train_split_target_statistics: SplitStatistics
+    split_standardizations: SplitStandardisation
+
+    def to(self, device: str) -> "DatasetData":
+        """Return a copy with every tensor field moved to ``device``."""
+        return DatasetData(
+            train_data=Split(
+                self.train_data.features.to(device), self.train_data.targets.to(device)
+            ),
+            val_data=Split(
+                self.val_data.features.to(device), self.val_data.targets.to(device)
+            ),
+            test_data=Split(
+                self.test_data.features.to(device), self.test_data.targets.to(device)
+            ),
+            train_split_target_statistics=SplitStatistics(
+                self.train_split_target_statistics.mean.to(device),
+                self.train_split_target_statistics.std.to(device),
+            ),
+            split_standardizations=self.split_standardizations,
+        )

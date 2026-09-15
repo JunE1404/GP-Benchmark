@@ -1,5 +1,5 @@
-from __future__ import annotations
-
+from misc.scaffolds import StandardisationBools
+from misc.scaffolds import SplitStandardisation
 from torch.fft import Tensor
 from .scaffolds import ResultFileDetails
 from datetime import datetime
@@ -106,7 +106,7 @@ def getDatasetSplits(dataset: RegressionDataset, split_str: str) -> tuple[float,
     )
     return split_train, split_val, split_test
 
-def parseStandardizationBools(standardization_str: str) -> list[tuple[bool, bool]]:
+def parseStandardizationBools(standardization_str: str) -> SplitStandardisation:
     """Parse the standardization flags for the train/val/test splits.
 
     Args:
@@ -118,12 +118,10 @@ def parseStandardizationBools(standardization_str: str) -> list[tuple[bool, bool
     """
     std_split_str_list = standardization_str.split(",")
     std_split_bool_list = [e == "y" for e in std_split_str_list]
-    st_split = [
-        (std_split_bool_list[0], std_split_bool_list[1]),
-        (std_split_bool_list[2], std_split_bool_list[3]),
-        (std_split_bool_list[4], std_split_bool_list[5]),
-    ]
-    return st_split
+    train_bools = StandardisationBools(features=std_split_bool_list[0], targets=std_split_bool_list[1])
+    val_bools = StandardisationBools(features=std_split_bool_list[2], targets=std_split_bool_list[3])
+    test_bools = StandardisationBools(features=std_split_bool_list[4], targets=std_split_bool_list[5])
+    return SplitStandardisation(train=train_bools, val=val_bools, test=test_bools)
 
 def getResultFileDetails(arguments: RunArguments, dataset_name: str, model_name: str, kernel_name: str, optimizer_name: str, start_time_str: str) -> ResultFileDetails:
     """Compute result/log file paths and create their parent directories.

@@ -6,22 +6,22 @@ from gpytorch.variational import CholeskyVariationalDistribution, VariationalStr
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 from collections.abc import Callable
-from misc.scaffolds import LogDetails
+from misc.scaffolds import LogDetails, DatasetData
 from regressors.regressor import Regressor
 
 from misc.helpers import getInducingPoints
-from misc.evaluate_regression import evaluate_regression
+from eval.evaluate_regression import evaluate_regression
 
 
 class SparseVariationalGP(ApproximateGP, Regressor):
+    datasetData: DatasetData
+
     def __init__(
         self,
+        dataset: DatasetData,
         strategy: str,
         strategy_seed: int,
         n: int,
-        train_data: tuple[Tensor, Tensor],
-        test_data: tuple[Tensor, Tensor],
-        val_data: tuple[Tensor, Tensor],
         batch_size: int,
         likelihood: gpytorch.likelihoods.Likelihood,
         kernel: gpytorch.kernels.Kernel | None = None,
@@ -31,13 +31,12 @@ class SparseVariationalGP(ApproximateGP, Regressor):
         """Initialize the sparse variational GP (SVGP) model.
 
         Args:
+            dataset: Dataset splits plus train target statistics and
+                standardization flags.
             strategy: Inducing-point initialization method, ``"kmeans"`` or
                 ``"random"``.
             strategy_seed: Seed used by the inducing-point initialization.
             n: Number of inducing points.
-            train_data: Tuple of (train_features, train_targets).
-            test_data: Tuple of (test_features, test_targets).
-            val_data: Tuple of (val_features, val_targets).
             batch_size: Minibatch size used during training.
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
             kernel: Covariance kernel; must be provided.
@@ -49,7 +48,11 @@ class SparseVariationalGP(ApproximateGP, Regressor):
                 ``None``.
         """
 
-        inducing_points = getInducingPoints(train_data[0], n, strategy=strategy, seed=strategy_seed)
+        self.datasetData = dataset
+        train_data = dataset.train_data
+        test_data = dataset.test_data
+        val_data = dataset.val_data
+        inducing_points = getInducingPoints(train_data.features, n, strategy=strategy, seed=strategy_seed)
         self.inducing_point_strat = strategy
 
         variational_distribution = CholeskyVariationalDistribution(
@@ -75,16 +78,17 @@ class SparseVariationalGP(ApproximateGP, Regressor):
         else:
             self.likelihood = likelihood
         self.batch_size = batch_size
-        self.train_data = train_data
-        self.test_data = test_data
-        self.val_data = val_data
+        self.train_data = (train_data.features, train_data.targets)
+        self.test_data = (test_data.features, test_data.targets)
+        self.val_data = (val_data.features, val_data.targets)
         self.trained = False
         if device == "cuda" and torch.cuda.is_available():
             self.to("cuda")
             self.likelihood = likelihood.cuda()
-            self.train_data = (train_data[0].cuda(), train_data[1].cuda())
-            self.test_data = (test_data[0].cuda(), test_data[1].cuda())
-            self.val_data = (val_data[0].cuda(), val_data[1].cuda())
+            self.datasetData = self.datasetData.to("cuda")
+            self.train_data = (self.datasetData.train_data.features, self.datasetData.train_data.targets)
+            self.test_data = (self.datasetData.test_data.features, self.datasetData.test_data.targets)
+            self.val_data = (self.datasetData.val_data.features, self.datasetData.val_data.targets)
 
     def forward(self, x: Tensor) -> gpytorch.distributions.MultivariateNormal:
         """Compute the prior GP distribution at input points.
@@ -99,19 +103,17 @@ class SparseVariationalGP(ApproximateGP, Regressor):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer: torch.optim.Optimizer, y_mean: Tensor, y_std: Tensor, standardize_test_targets: bool, iterations: int, logger: Callable[[LogDetails], None]) -> float:
+    def run_training(self, optimizer: torch.optim.Optimizer, iterations: int, logger: Callable[[LogDetails], None]) -> float:
         """Train the SVGP model using minibatch variational inference.
 
         Optimizes kernel hyperparameters, likelihood noise, inducing point
         locations, and variational parameters by minimizing the negative
         variational ELBO. The returned duration is ``start - end`` (negative),
-        matching the convention used across the benchmark.
+        matching the convention used across the benchmark. Target statistics and
+        standardization flags are read from ``self.datasetData``.
 
         Args:
             optimizer: A PyTorch optimizer (e.g. Adam or LBFGS).
-            y_mean: Training target mean used to un-standardize metrics.
-            y_std: Training target standard deviation used to un-standardize metrics.
-            standardize_test_targets: Whether the test targets are standardized.
             iterations: Number of passes (epochs) through the training data.
             logger: Callback invoked with a :class:`LogDetails` after each epoch.
 
@@ -176,7 +178,7 @@ class SparseVariationalGP(ApproximateGP, Regressor):
             pst_t = posterior.mean.detach().cpu()
             pred_std = posterior.stddev.detach().cpu()
 
-            MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
+            MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, datasetData=self.datasetData)
             end_iter_time = time.perf_counter()
             if hasattr(self.covar_module, "outputscale"):
                     outputscale = self.covar_module.outputscale.item()
@@ -203,7 +205,7 @@ class SparseVariationalGP(ApproximateGP, Regressor):
 
         self.trained = True
         time_end = time.time()
-        return time_start-time_end
+        return time_end -time_start
 
     def predict(self, x: Tensor) -> tuple[gpytorch.distributions.MultivariateNormal, float]:
         """Get the posterior distribution over test points after training.

@@ -6,8 +6,8 @@ import gpytorch
 import torch
 from torch import Tensor
 from collections.abc import Callable, Iterator
-from misc.scaffolds import LogDetails
-from misc.evaluate_regression import evaluate_regression
+from misc.scaffolds import LogDetails, DatasetData
+from eval.evaluate_regression import evaluate_regression
 
 
 class LossNotFiniteError(RuntimeError):
@@ -17,13 +17,13 @@ class LossNotFiniteError(RuntimeError):
 class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
     train_data: tuple[Tensor, Tensor]
     test_data: tuple[Tensor, Tensor]
+    val_data: tuple[Tensor, Tensor]
+    datasetData: DatasetData
     trained: bool
 
     def __init__(
         self,
-        train_data: tuple[Tensor, Tensor],
-        test_data: tuple[Tensor, Tensor],
-        val_data: tuple[Tensor, Tensor],
+        dataset: DatasetData,
         likelihood: gpytorch.likelihoods.Likelihood,
         kernel: gpytorch.kernels.Kernel | None = None,
         mean_module: gpytorch.means.Mean | None = None,
@@ -32,9 +32,8 @@ class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
         """Initialize the exact GP model that solves linear systems with CG.
 
         Args:
-            train_data: Tuple of (train_features, train_targets).
-            test_data: Tuple of (test_features, test_targets).
-            val_data: Tuple of (val_features, val_targets).
+            dataset: Dataset splits plus train target statistics and
+                standardization flags.
             likelihood: A GPyTorch likelihood (e.g. GaussianLikelihood).
             kernel: Covariance kernel; must be provided.
             mean_module: Mean module; must be provided.
@@ -44,7 +43,11 @@ class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
             ValueError: If ``mean_module``, ``kernel`` or ``likelihood`` is
                 ``None``.
         """
-        super(ExactGPCGModel, self).__init__(train_data[0], train_data[1], likelihood)
+        self.datasetData = dataset
+        train_data = dataset.train_data
+        test_data = dataset.test_data
+        val_data = dataset.val_data
+        super(ExactGPCGModel, self).__init__(train_data.features, train_data.targets, likelihood)
         if mean_module is None:
             raise ValueError("No mean module set.")
         else:
@@ -58,16 +61,17 @@ class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
         else:
             self.likelihood = likelihood
 
-        self.train_data = train_data
-        self.test_data = test_data
-        self.val_data = val_data
+        self.train_data = (train_data.features, train_data.targets)
+        self.test_data = (test_data.features, test_data.targets)
+        self.val_data = (val_data.features, val_data.targets)
         self.trained = False
         if device == "cuda" and torch.cuda.is_available():
             self.to("cuda")
             self.likelihood = likelihood.cuda()
-            self.train_data = (train_data[0].cuda(), train_data[1].cuda())
-            self.test_data = (test_data[0].cuda(), test_data[1].cuda())
-            self.val_data = (val_data[0].cuda(), val_data[1].cuda())
+            self.datasetData = self.datasetData.to("cuda")
+            self.train_data = (self.datasetData.train_data.features, self.datasetData.train_data.targets)
+            self.test_data = (self.datasetData.test_data.features, self.datasetData.test_data.targets)
+            self.val_data = (self.datasetData.val_data.features, self.datasetData.val_data.targets)
 
     @contextlib.contextmanager
     def _settings_context(self) -> Iterator[None]:
@@ -102,19 +106,17 @@ class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-    def run_training(self, optimizer: torch.optim.Optimizer, y_mean: Tensor, y_std: Tensor, standardize_test_targets: bool, iterations: int, logger: Callable[[LogDetails], None]) -> float:
+    def run_training(self, optimizer: torch.optim.Optimizer, iterations: int, logger: Callable[[LogDetails], None]) -> float:
         """Train the exact GP with conjugate-gradient linear solves.
 
         Stops early if the loss becomes non-finite. Each iteration takes a
         gradient step on the training split and logs test-split metrics. The
         returned duration is ``start - end`` (negative), matching the convention
-        used across the benchmark.
+        used across the benchmark. Target statistics and standardization flags
+        are read from ``self.datasetData``.
 
         Args:
             optimizer: A PyTorch optimizer (e.g. Adam or LBFGS).
-            y_mean: Training target mean used to un-standardize metrics.
-            y_std: Training target standard deviation used to un-standardize metrics.
-            standardize_test_targets: Whether the test targets are standardized.
             iterations: Number of optimization iterations.
             logger: Callback invoked with a :class:`LogDetails` after each iteration.
 
@@ -174,7 +176,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
                 pst_t = posterior.mean.detach().cpu()
                 pred_std = posterior.stddev.detach().cpu()
 
-                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, self.test_data[1], y_mean, y_std, standardize_test_targets)
+                MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, datasetData=self.datasetData)
                 end_iter_time = time.perf_counter()
                 if hasattr(self.covar_module, "outputscale"):
                     outputscale = self.covar_module.outputscale.item()
@@ -201,7 +203,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
 
             self.trained = True
             time_end = time.time()
-            return time_start-time_end
+            return time_end -time_start
 
     def predict(self, x: Tensor) -> tuple[gpytorch.distributions.MultivariateNormal, float]:
         """Get the posterior distribution over test points after training.

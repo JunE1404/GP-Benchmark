@@ -1,0 +1,51 @@
+@startuml Regressors
+skinparam classAttributeIconSize 0
+skinparam linetype line
+skinparam ranksep 100
+hide empty members
+set namespaceSeparator none
+hide GP_SPACER
+
+abstract class Regressor {
+  +run_training(optimizer, y_mean, y_std, ...) : float
+  +predict(x) : (MultivariateNormal, float)
+  +forward(x) : MultivariateNormal
+  +__str__() : str
+}
+
+class ExactGPModel
+class ExactGPCGModel
+class SparseVariationalGP
+class CAGPModel
+
+package "gpytorch.models" {
+  ' Invisible spacer widens the block so it centres under the concrete models row.
+  ' Tune the number of spaces if class labels change.
+  class "                            " as GP_SPACER #line:transparent;back:transparent
+  class ExactGP
+  class ApproximateGP
+  class ComputationAwareGP
+}
+
+' Force layout: Regressor (top) -> concrete models (middle) -> gpytorch bases (bottom)
+Regressor -[hidden]down-> ExactGPModel
+Regressor -[hidden]down-> ExactGPCGModel
+Regressor -[hidden]down-> SparseVariationalGP
+Regressor -[hidden]down-> CAGPModel
+
+ExactGPModel        -[hidden]down-> GP_SPACER
+ExactGPModel        -[hidden]down-> ExactGP
+ExactGPCGModel      -[hidden]down-> ExactGP
+SparseVariationalGP -[hidden]down-> ApproximateGP
+CAGPModel           -[hidden]down-> ComputationAwareGP
+
+ExactGPModel        --|> ExactGP
+ExactGPModel        --|> Regressor
+ExactGPCGModel      --|> ExactGP
+ExactGPCGModel      --|> Regressor
+SparseVariationalGP --|> ApproximateGP
+SparseVariationalGP --|> Regressor
+CAGPModel           --|> ComputationAwareGP
+CAGPModel           --|> Regressor
+
+@enduml
