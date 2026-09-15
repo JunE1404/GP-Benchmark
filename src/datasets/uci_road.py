@@ -19,8 +19,8 @@ class UCIRoad(RegressionDataset):
         f_local, t_local = GetLocal(self)
         if f_local is None or t_local is None:
             data = pd.read_csv("src/datasets/localfiles/UCIRoad.txt", header=None)
-            features = data.iloc[:,[0,2,3]].to_numpy()
-            targets = data.iloc[:,[1]].to_numpy()
+            features = data.iloc[:,[0,1,2]].to_numpy()
+            targets = data.iloc[:,[3]].to_numpy()
         else:
             features = f_local
             targets = t_local

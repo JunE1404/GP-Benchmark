@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=exact_gp_bench
+#SBATCH --job-name=matern_exact_gp_bench
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
 #SBATCH --partition=a100-galvani
@@ -70,7 +70,7 @@ uv run python src/main.py --dataset "${DSET}" \
                         --split "0.9,0.0,0.1" \
                          --standardize "y,y,y,n,y,n" \
                          --gp "exact" \
-                         --kernel "RBFKeops" \
+                         --kernel "matern32Keops" \
                          --likelyhood "gaussian" \
                          --mean "constant" \
                          "${TOPT[@]}" \

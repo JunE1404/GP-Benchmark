@@ -79,6 +79,9 @@ uv run python src/main.py --dataset "${DSET}" \
                          --shuffle \
                          --seed "${SEED}" \
                          --device "cuda" \
+                         --wandb \
+                         --wandb_project "GP Test Runs" \
+                         --wandb_entity "GP-Bench-Thesis" \
                          "${TSIGVAR[@]}"
 
 

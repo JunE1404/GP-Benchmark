@@ -9,14 +9,14 @@ from datetime import datetime
 
 import misc.helpers as helpers
 from misc.scaffolds import RunArguments, WandBDetails, RunSummary
-from logging.wab import WandBRun
+from misc.wab import WandBRun
 from config.likelihood import getLikelihood
 from config.kernel import getKernel
 from config.model import getGPModel
 from config.mean import getMean
 from config.optimizer import getOptimizer
 from config.dataset import getDataset
-from config.logging import getLogger
+from config.logger import getLogger
 from eval.evaluate_regression import evaluate_regression
 
 
@@ -104,6 +104,7 @@ def get_from_args() -> RunArguments:
     wandb_on = args.wandb
     wandb_project = args.wandb_project
     wandb_entity = args.wandb_entity
+    custom_logger = args.custom_logger
 
     return RunArguments(
         approximation_size=app_size,
@@ -127,6 +128,7 @@ def get_from_args() -> RunArguments:
         wandb=wandb_on,
         wandb_project=wandb_project,
         wandb_entity=wandb_entity,
+        custom_logger=custom_logger
     )
 
 
@@ -177,6 +179,7 @@ def get_from_config(path: str) -> RunArguments:
             wandb=bool(data.get("wandb", False)),
             wandb_project=data.get("wandb_project", "GP Test Runs"),
             wandb_entity=data.get("wandb_entity", "GP-Bench-Thesis"),
+            custom_logger=data.get("custom_logger", False)
         )
 
 

@@ -78,6 +78,9 @@ uv run python src/main.py --dataset "${DSET}" \
                          --seed "${SEED}" \
                          --device "cuda" \
                          --svgp_batch_size 1024 \
+                         --wandb \
+                         --wandb_project "GP Test Runs" \
+                         --wandb_entity "GP-Bench-Thesis" \
                          "${TSIGVAR[@]}"
 
 

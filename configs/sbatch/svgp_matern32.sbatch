@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=exact_gp_bench
+#SBATCH --job-name=matern_svgp_gp_bench
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
 #SBATCH --partition=a100-galvani
@@ -13,8 +13,7 @@
 BASE_SEED=42
 SEED_MOD=$((SLURM_ARRAY_TASK_ID % 5))
 DSET_MOD=$((SLURM_ARRAY_TASK_ID / 5 % 5))
-SIGVAR=$((SLURM_ARRAY_TASK_ID / 25 % 2))
-OPT_MOD=$((SLURM_ARRAY_TASK_ID / 50 % 2))
+SIGVAR=$((SLURM_ARRAY_TASK_ID / 25 % 4))
 SEED=$((BASE_SEED + SEED_MOD))
 
 if [[ $DSET_MOD == 0 ]]; then
@@ -31,15 +30,13 @@ fi
 
 
 if [[ $SIGVAR == 0 ]]; then
-   TSIGVAR=(--trainable_output_scale)
+   TSIGVAR=(--trainable_output_scale --svgp_strategy "random")
+elif [[ $SIGVAR == 1 ]]; then
+   TSIGVAR=(--trainable_output_scale --svgp_strategy "kmeans")
+elif [[ $SIGVAR == 2 ]]; then
+   TSIGVAR=(--svgp_strategy "random")
 else
-   TSIGVAR=()
-fi
-
-if [[ $OPT_MOD == 0 ]]; then
-   TOPT=(--optimizer "adam" --learningrate 0.1)
-else
-   TOPT=(--optimizer "lbfgs" --lgbfs_max_it 1)
+   TSIGVAR=(--svgp_strategy "kmeans")
 fi
 # Define paths
 REPO_DIR="/mnt/lustre/work/hennig/hmx114/repos/gp-bench"
@@ -69,16 +66,18 @@ cd ${REPO_DIR}
 uv run python src/main.py --dataset "${DSET}" \
                         --split "0.9,0.0,0.1" \
                          --standardize "y,y,y,n,y,n" \
-                         --gp "exact" \
-                         --kernel "RBFKeops" \
+                         --gp "svgp" \
+                         --kernel "matern32Keops" \
                          --likelyhood "gaussian" \
                          --mean "constant" \
-                         "${TOPT[@]}" \
+                         --optimizer "adam" \
+                         --learningrate 0.1 \
                          --iterations 500 \
                          --approximation_size 1024 \
                          --shuffle \
                          --seed "${SEED}" \
                          --device "cuda" \
+                         --svgp_batch_size 1024 \
                          --wandb \
                          --wandb_project "GP Test Runs" \
                          --wandb_entity "GP-Bench-Thesis" \

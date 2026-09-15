@@ -48,13 +48,15 @@ def getKernel(
             # to fix output scale, dont wrap in scale kernel, make adj via "trainable_output_scale parameter"
             kernel = signal_variance_kernelWrap(arguments.train_signal_variance,gpytorch.kernels.RBFKernel(
                     ard_num_dims=number_train_points,
-                    lengthscale_constraint=gpytorch.constraints.GreaterThan(10e-6),
                 ))
             kernel_name = "RBF"
 
-        case "matern2.5":
+        case "matern32":
             kernel = signal_variance_kernelWrap(arguments.train_signal_variance,
-                gpytorch.kernels.MaternKernel(nu=2.5)
+                gpytorch.kernels.MaternKernel(
+                    nu=1.5,
+                    ard_num_dims=number_train_points,
+                )
             )
             kernel_name = "Matern 2.5"
 
@@ -63,13 +65,17 @@ def getKernel(
                 arguments.train_signal_variance,
                 RBFKEops(
                     ard_num_dims=number_train_points,
-                    lengthscale_constraint=gpytorch.constraints.GreaterThan(10e-6),
                 )
             )
             kernel_name = "RBFKeops"
 
-        case "matern2.5Keops":
-            kernel = signal_variance_kernelWrap(arguments.train_signal_variance,MaternKeops(nu=2.5))
-            kernel_name = "Matern 2.5 Keops"
+        case "matern32Keops":
+            kernel = signal_variance_kernelWrap(arguments.train_signal_variance,
+                MaternKeops(
+                    nu=1.5,
+                    ard_num_dims=number_train_points,
+                )
+            )
+            kernel_name = "Matern 1.5 Keops"
 
     return kernel, kernel_name
