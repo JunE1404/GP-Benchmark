@@ -58,7 +58,7 @@ def getKernel(
                     ard_num_dims=number_train_points,
                 )
             )
-            kernel_name = "Matern 2.5"
+            kernel_name = "Matern32"
 
         case "RBFKeops":
             kernel = signal_variance_kernelWrap(
@@ -76,6 +76,6 @@ def getKernel(
                     ard_num_dims=number_train_points,
                 )
             )
-            kernel_name = "Matern 1.5 Keops"
+            kernel_name = "Matern32Keops"
 
     return kernel, kernel_name
