@@ -67,7 +67,7 @@ uv run python src/main.py --dataset "${DSET}" \
                         --split "0.9,0.0,0.1" \
                          --standardize "y,y,y,n,y,n" \
                          --gp "svgp" \
-                         --kernel "matern32Keops" \
+                         --kernel "matern32" \
                          --likelyhood "gaussian" \
                          --mean "constant" \
                          --optimizer "adam" \

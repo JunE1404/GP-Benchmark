@@ -1,3 +1,4 @@
+import contextlib
 import gpytorch
 import torch
 import time
@@ -5,7 +6,7 @@ from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution, VariationalStrategy
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from misc.scaffolds import LogDetails, DatasetData
 from regressors.regressor import Regressor
 
@@ -90,6 +91,18 @@ class SparseVariationalGP(ApproximateGP, Regressor):
             self.test_data = (self.datasetData.test_data.features, self.datasetData.test_data.targets)
             self.val_data = (self.datasetData.val_data.features, self.datasetData.val_data.targets)
 
+    @contextlib.contextmanager
+    def _settings_context(self) -> Iterator[None]:
+        """Numerical settings that keep the variational Cholesky solves PSD.
+
+        The default float32 Cholesky jitter (1e-6) is too small once the
+        inducing-point covariance becomes ill-conditioned (e.g. frozen output
+        scale on low-dimensional data). Raising the base jitter and the retry
+        count lets the solve recover without changing the model.
+        """
+        with gpytorch.settings.cholesky_jitter(float_value=1e-4), gpytorch.settings.cholesky_max_tries(5):
+            yield
+
     def forward(self, x: Tensor) -> gpytorch.distributions.MultivariateNormal:
         """Compute the prior GP distribution at input points.
 
@@ -125,8 +138,9 @@ class SparseVariationalGP(ApproximateGP, Regressor):
 
         def _compute_loss(mll: gpytorch.mlls.VariationalELBO, x_batch: Tensor, y_batch: Tensor) -> Tensor:
             """Compute the negative variational ELBO loss for a batch."""
-            output = self(x_batch)
-            return -mll(output, y_batch)
+            with self._settings_context():
+                output = self(x_batch)
+                return -mll(output, y_batch)
 
         self.train()
         self.likelihood.train()
@@ -172,7 +186,7 @@ class SparseVariationalGP(ApproximateGP, Regressor):
                 x = x.cuda()
             self.eval()
             self.likelihood.eval()
-            with torch.no_grad():
+            with self._settings_context(), torch.no_grad():
                 posterior = self.likelihood(self(x))
 
             pst_t = posterior.mean.detach().cpu()
@@ -229,7 +243,7 @@ class SparseVariationalGP(ApproximateGP, Regressor):
             x = x.cuda()
         self.eval()
         self.likelihood.eval()
-        with torch.no_grad():
+        with self._settings_context(), torch.no_grad():
             posterior = self.likelihood(self(x))
         time_end = time.time()
         return posterior, time_start-time_end
