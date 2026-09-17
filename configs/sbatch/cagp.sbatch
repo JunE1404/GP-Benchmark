@@ -76,7 +76,6 @@ uv run python src/main.py --dataset "${DSET}" \
                          --wandb \
                          --wandb_project "GP Test Runs" \
                          --wandb_entity "GP-Bench-Thesis" \
-                         --float64 \
                          "${TSIGVAR[@]}"
 
 
