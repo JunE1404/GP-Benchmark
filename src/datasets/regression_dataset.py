@@ -70,7 +70,7 @@ class RegressionDataset:
         if excluded_feature_indeces== None and includes_feature_indeces==None:
             inlcuded_features_i = feature_indeces
 
-        SaveLocal(self, self.features, self.targets)
+        SaveLocal(self, self.features.float(), self.targets.float())
         self.features = self.features[:,inlcuded_features_i]
         if self.features.shape[1] != n_feature_types:
             raise Exception("Included features to feature type count mismatch")
@@ -84,17 +84,21 @@ class RegressionDataset:
 
     @staticmethod
     def _convert_to_tensor(a: NDArray | Tensor) -> Tensor:
-        """Convert a NumPy array or PyTorch tensor to a float32 tensor.
+        """Convert a NumPy array or PyTorch tensor to the default float dtype.
+
+        Uses ``torch.get_default_dtype()`` so the whole pipeline can be run in
+        float64 once ``torch.set_default_dtype`` has been changed (see the
+        ``--float64`` flag in ``main.py``).
 
         Args:
             a: Input array or tensor.
 
         Returns:
-            A float32 PyTorch tensor.
+            A PyTorch tensor in the current default float dtype.
         """
         if isinstance(a, Tensor):
-            return a.float() if not a.is_floating_point() else a
-        return tensor(a).float()
+            return a.to(torch.get_default_dtype())
+        return tensor(a).to(torch.get_default_dtype())
 
     @property
     def input_dim(self) -> int:

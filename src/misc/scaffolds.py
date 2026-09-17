@@ -39,6 +39,7 @@ class RunArguments:
     wandb_project: str
     wandb_entity: str
     custom_logger: bool
+    float64: bool
 
 
 @dataclass

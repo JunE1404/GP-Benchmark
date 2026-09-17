@@ -7,6 +7,8 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 
+import torch
+
 import misc.helpers as helpers
 from misc.scaffolds import RunArguments, WandBDetails, RunSummary
 from misc.wab import WandBRun
@@ -50,6 +52,7 @@ parser.add_argument("-w", "--wandb", action="store_true")
 parser.add_argument("-cl", "--custom_logger", action="store_true")
 parser.add_argument("-wp", "--wandb_project", type=str, default="GP Test Runs")
 parser.add_argument("-we", "--wandb_entity", type=str, default="GP-Bench-Thesis")
+parser.add_argument("-f64", "--float64", action="store_true")
 
 args = parser.parse_args()
 
@@ -105,6 +108,7 @@ def get_from_args() -> RunArguments:
     wandb_project = args.wandb_project
     wandb_entity = args.wandb_entity
     custom_logger = args.custom_logger
+    float64_on = args.float64
 
     return RunArguments(
         approximation_size=app_size,
@@ -128,7 +132,8 @@ def get_from_args() -> RunArguments:
         wandb=wandb_on,
         wandb_project=wandb_project,
         wandb_entity=wandb_entity,
-        custom_logger=custom_logger
+        custom_logger=custom_logger,
+        float64=float64_on
     )
 
 
@@ -179,7 +184,8 @@ def get_from_config(path: str) -> RunArguments:
             wandb=bool(data.get("wandb", False)),
             wandb_project=data.get("wandb_project", "GP Test Runs"),
             wandb_entity=data.get("wandb_entity", "GP-Bench-Thesis"),
-            custom_logger=data.get("custom_logger", False)
+            custom_logger=data.get("custom_logger", False),
+            float64=bool(data.get("float64", False))
         )
 
 
@@ -197,6 +203,8 @@ def run(arguments: RunArguments) -> None:
         ValueError: If any of the resolved dataset, likelihood, kernel, mean,
             model or optimizer is ``None`` (unknown configuration value).
     """
+    torch.set_default_dtype(torch.float64 if arguments.float64 else torch.float32)
+
     dataset = getDataset(arguments)
 
     if dataset is None:

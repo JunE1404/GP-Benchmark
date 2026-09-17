@@ -79,7 +79,7 @@ class ExactGPCGModel(gpytorch.models.ExactGP, Regressor):
         with (
             gpytorch.settings.fast_computations(
                 covar_root_decomposition=True,
-                log_prob=False,
+                log_prob=True,
                 solves=True,
             ),
             gpytorch.settings.max_cholesky_size(0),
