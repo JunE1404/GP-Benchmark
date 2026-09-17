@@ -2,7 +2,7 @@
 #SBATCH --job-name=matern_exact_gp_full_gp_bench
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
-#SBATCH --partition=a100-preemptable-galvani
+#SBATCH --partition=a100-galvani
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
@@ -68,6 +68,7 @@ uv run python src/main.py --dataset "wine" \
                          --wandb_project "GP Test Runs" \
                          --wandb_entity "GP-Bench-Thesis" \
                          --float64 \
+                         --deduplicate "first" \
                          "${TSIGVAR[@]}"
 
 

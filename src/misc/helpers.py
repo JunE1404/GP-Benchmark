@@ -22,7 +22,7 @@ import torch
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDataset, gptype: object, opt_str: str, approx_size: int, kernel_name: str, inducing_point_method: str | None = None) -> bool:
+def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDataset, gptype: object, opt_str: str, approx_size: int, kernel_name: str, inducing_point_method: str | None = None, deduplicate: str = "none") -> bool:
     """Check whether a result for this configuration already exists.
 
     Scans ``results/<dataset>/<model>/*.json`` and compares the seed, output
@@ -42,6 +42,8 @@ def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDatase
         inducing_point_method: SVGP inducing-point strategy; ``None`` for other
             models. Distinguishes otherwise identical SVGP runs in the same
             result directory.
+        deduplicate: Deduplication strategy recorded in results. Distinguishes
+            runs that otherwise match but were preprocessed differently.
 
     Returns:
         ``True`` if no matching result exists, ``False`` if one was found.
@@ -53,7 +55,7 @@ def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDatase
             if x.endswith(".json"):
                 with open(Path(p, x)) as f:
                     data = json.load(f)
-                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training and data["optimizer"] == opt_str and data.get("approximation_size") == approx_size and data.get("kernel") == kernel_name and data.get("inducing_point_method") == inducing_point_method:
+                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training and data["optimizer"] == opt_str and data.get("approximation_size") == approx_size and data.get("kernel") == kernel_name and data.get("inducing_point_method") == inducing_point_method and data.get("deduplicate", "none") == deduplicate:
                         tmp = False
     return tmp
 

@@ -226,12 +226,56 @@ class RegressionDataset:
 
         return SplitStatistics(mean=x_means, std=x_stds), SplitStatistics(mean=y_mean, std=y_std)
 
+    def _deduplicate(self, features: Tensor, targets: Tensor, strategy: str) -> tuple[Tensor, Tensor]:
+        """Remove duplicate feature rows, optionally aggregating their targets.
+
+        Duplicate inputs make the covariance matrix exactly rank-deficient and,
+        under a random split, also leak the same point into train and test.
+        Removing them here (before the split) addresses both.
+
+        Args:
+            features: Model inputs of shape (n_samples, n_features).
+            targets: Targets aligned with ``features``.
+            strategy: ``"none"`` (no-op), ``"mean"`` (average the targets of
+                duplicate rows) or ``"first"`` (keep the first occurrence).
+
+        Returns:
+            ``(features, targets)`` with duplicate rows removed.
+
+        Raises:
+            ValueError: If ``strategy`` is unknown.
+        """
+        if strategy == "none":
+            return features, targets
+        if strategy not in ("mean", "first"):
+            raise ValueError(f"Unknown deduplication strategy: '{strategy}'")
+
+        unique, inverse, counts = torch.unique(
+            features, dim=0, return_inverse=True, return_counts=True
+        )
+        if strategy == "first":
+            first = torch.full(
+                (unique.shape[0],), features.shape[0], dtype=torch.long, device=features.device
+            )
+            first.scatter_reduce_(
+                0, inverse, torch.arange(features.shape[0], device=features.device), reduce="amin"
+            )
+            return unique, targets[first]
+
+        target_sum = torch.zeros(
+            unique.shape[0], *targets.shape[1:], dtype=targets.dtype, device=targets.device
+        )
+        target_sum.index_add_(0, inverse, targets)
+        divisor = counts.reshape(-1, *([1] * (targets.dim() - 1))).to(targets.dtype)
+        return unique, target_sum / divisor
+
     def get_data_splits(
         self,
         split_fractions_argument: str,
         standardize_data_splits_argument: str,
         shuffle_data: bool,
         shuffle_seed: float | None,
+        deduplicate: str = "none",
     ) -> DatasetData:
         """Split the dataset into train, validation, and test sets with optional standardization.
 
@@ -247,6 +291,10 @@ class RegressionDataset:
             shuffle_data: Whether to randomly shuffle the data before splitting.
             shuffle_seed: Random seed for shuffling; if ``None``, a random seed
                 is used.
+            deduplicate: ``"none"``, ``"mean"`` or ``"first"``. Duplicate
+                feature rows are removed before splitting (avoiding train/test
+                leakage); ``"mean"`` averages their targets and ``"first"``
+                keeps the first occurrence.
 
         Returns:
             Tuple of ``((train_features, train_targets),
@@ -265,6 +313,8 @@ class RegressionDataset:
         rng = np.random.RandomState(shuffle_seed)
         features = self._get_onehot_encoded_features()
         targets = self.targets
+
+        features, targets = self._deduplicate(features, targets, deduplicate)
 
         n = features.shape[0]
         indices = np.arange(n)

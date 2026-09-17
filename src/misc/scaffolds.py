@@ -40,6 +40,7 @@ class RunArguments:
     wandb_entity: str
     custom_logger: bool
     float64: bool
+    deduplicate: str
 
 
 @dataclass

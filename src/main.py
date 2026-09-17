@@ -53,6 +53,7 @@ parser.add_argument("-cl", "--custom_logger", action="store_true")
 parser.add_argument("-wp", "--wandb_project", type=str, default="GP Test Runs")
 parser.add_argument("-we", "--wandb_entity", type=str, default="GP-Bench-Thesis")
 parser.add_argument("-f64", "--float64", action="store_true")
+parser.add_argument("-dd", "--deduplicate", type=str, default="none", choices=["none", "mean", "first"])
 
 args = parser.parse_args()
 
@@ -109,6 +110,7 @@ def get_from_args() -> RunArguments:
     wandb_entity = args.wandb_entity
     custom_logger = args.custom_logger
     float64_on = args.float64
+    deduplicate = args.deduplicate
 
     return RunArguments(
         approximation_size=app_size,
@@ -133,7 +135,8 @@ def get_from_args() -> RunArguments:
         wandb_project=wandb_project,
         wandb_entity=wandb_entity,
         custom_logger=custom_logger,
-        float64=float64_on
+        float64=float64_on,
+        deduplicate=deduplicate
     )
 
 
@@ -185,7 +188,8 @@ def get_from_config(path: str) -> RunArguments:
             wandb_project=data.get("wandb_project", "GP Test Runs"),
             wandb_entity=data.get("wandb_entity", "GP-Bench-Thesis"),
             custom_logger=data.get("custom_logger", False),
-            float64=bool(data.get("float64", False))
+            float64=bool(data.get("float64", False)),
+            deduplicate=data.get("deduplicate", "none")
         )
 
 
@@ -219,6 +223,7 @@ def run(arguments: RunArguments) -> None:
             standardize_data_splits_argument=arguments.standardize,
             shuffle_data=shuffle,
             shuffle_seed=seed,
+            deduplicate=arguments.deduplicate,
         )
         train = dataset_data.train_data
         val = dataset_data.val_data
@@ -260,7 +265,7 @@ def run(arguments: RunArguments) -> None:
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
 
-        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n, kernel_name, arguments.svgp_strategy if arguments.gp == "svgp" else None)
+        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n, kernel_name, arguments.svgp_strategy if arguments.gp == "svgp" else None, arguments.deduplicate)
         if not seed_ok:
             print(f"Seed {seed} was used already used for {str(dataset)} with {str(model)}")
             return
@@ -304,6 +309,7 @@ def run(arguments: RunArguments) -> None:
             "optimizer": optimizer_name,
             "learningrate": lr,
             "shuffledData": shuffle,
+            "deduplicate": arguments.deduplicate,
             "seed": seed,
             "evalData": {"MAE": ev_data[0], 
                          "NLL":ev_data[1], 
