@@ -95,12 +95,16 @@ class SparseVariationalGP(ApproximateGP, Regressor):
     def _settings_context(self) -> Iterator[None]:
         """Numerical settings that keep the variational Cholesky solves PSD.
 
-        The default float32 Cholesky jitter (1e-6) is too small once the
-        inducing-point covariance becomes ill-conditioned (e.g. frozen output
-        scale on low-dimensional data). Raising the base jitter and the retry
-        count lets the solve recover without changing the model.
+        The inducing-point covariance is assembled in float32, so on
+        ill-conditioned problems (e.g. a frozen output scale on low-dimensional
+        data) it can pick up spurious negative eigenvalues at rounding level.
+        The variational solve casts the matrix to float64 before factorizing
+        (``_linalg_dtype_cholesky`` defaults to float64), so the *double*
+        precision jitter ladder is the relevant one. The retry count is raised
+        so that ladder can climb far enough to recover; the base jitter is left
+        small so no more jitter than necessary is added.
         """
-        with gpytorch.settings.cholesky_jitter(float_value=1e-4), gpytorch.settings.cholesky_max_tries(5):
+        with gpytorch.settings.cholesky_jitter(float_value=1e-4, double_value=1e-8),gpytorch.settings.cholesky_max_tries(10):
             yield
 
     def forward(self, x: Tensor) -> gpytorch.distributions.MultivariateNormal:

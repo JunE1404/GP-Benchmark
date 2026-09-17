@@ -240,10 +240,7 @@ class CAGPModel(ComputationAwareGP, Regressor):
                     self.likelihood.eval()
                     with torch.no_grad():
                         posterior = self.likelihood(self(x))
-
-                pst_t = posterior.mean.detach().cpu()
-                pred_std = posterior.stddev.detach().cpu()
-
+                        
                 MAE, NLL, PICP, RMSE, LScale = evaluate_regression(self, posterior, datasetData=self.datasetData)
 
                 end_iter_time = time.perf_counter()
