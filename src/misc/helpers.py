@@ -22,7 +22,7 @@ import torch
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDataset, gptype: object, opt_str: str, approx_size: int, kernel_name: str, inducing_point_method: str | None = None, deduplicate: str = "none") -> bool:
+def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDataset, gptype: object, opt_str: str, approx_size: int, kernel_name: str, inducing_point_method: str | None = None, deduplicate: str = "none", lengthscale_bounds: str | None = None) -> bool:
     """Check whether a result for this configuration already exists.
 
     Scans ``results/<dataset>/<model>/*.json`` and compares the seed, output
@@ -44,6 +44,9 @@ def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDatase
             result directory.
         deduplicate: Deduplication strategy recorded in results. Distinguishes
             runs that otherwise match but were preprocessed differently.
+        lengthscale_bounds: Lengthscale bound spec recorded in results (e.g.
+            ``"1e-5"`` or ``"1e-2,1e1"``); ``None`` for unconstrained runs.
+            Distinguishes bounded LBFGS re-runs from their unbounded originals.
 
     Returns:
         ``True`` if no matching result exists, ``False`` if one was found.
@@ -55,7 +58,7 @@ def seed_check(seed: int | None, os_scale_training: bool, dset: RegressionDatase
             if x.endswith(".json"):
                 with open(Path(p, x)) as f:
                     data = json.load(f)
-                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training and data["optimizer"] == opt_str and data.get("approximation_size") == approx_size and data.get("kernel") == kernel_name and data.get("inducing_point_method") == inducing_point_method and data.get("deduplicate", "none") == deduplicate:
+                    if data["seed"] == seed and data["trained_output_scale"] == os_scale_training and data["optimizer"] == opt_str and data.get("approximation_size") == approx_size and data.get("kernel") == kernel_name and data.get("inducing_point_method") == inducing_point_method and data.get("deduplicate", "none") == deduplicate and data.get("lengthscale_bounds") == lengthscale_bounds:
                         tmp = False
     return tmp
 

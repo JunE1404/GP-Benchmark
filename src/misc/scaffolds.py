@@ -41,6 +41,7 @@ class RunArguments:
     custom_logger: bool
     float64: bool
     deduplicate: str
+    lengthscale_bounds: str | None
 
 
 @dataclass

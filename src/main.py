@@ -54,6 +54,7 @@ parser.add_argument("-wp", "--wandb_project", type=str, default="GP Test Runs")
 parser.add_argument("-we", "--wandb_entity", type=str, default="GP-Bench-Thesis")
 parser.add_argument("-f64", "--float64", action="store_true")
 parser.add_argument("-dd", "--deduplicate", type=str, default="none", choices=["none", "mean", "first"])
+parser.add_argument("-lsb", "--ls_bounds", type=str, default=None)
 
 args = parser.parse_args()
 
@@ -111,6 +112,7 @@ def get_from_args() -> RunArguments:
     custom_logger = args.custom_logger
     float64_on = args.float64
     deduplicate = args.deduplicate
+    ls_bounds = args.ls_bounds
 
     return RunArguments(
         approximation_size=app_size,
@@ -136,7 +138,8 @@ def get_from_args() -> RunArguments:
         wandb_entity=wandb_entity,
         custom_logger=custom_logger,
         float64=float64_on,
-        deduplicate=deduplicate
+        deduplicate=deduplicate,
+        lengthscale_bounds=ls_bounds
     )
 
 
@@ -189,7 +192,8 @@ def get_from_config(path: str) -> RunArguments:
             wandb_entity=data.get("wandb_entity", "GP-Bench-Thesis"),
             custom_logger=data.get("custom_logger", False),
             float64=bool(data.get("float64", False)),
-            deduplicate=data.get("deduplicate", "none")
+            deduplicate=data.get("deduplicate", "none"),
+            lengthscale_bounds=data.get("ls_bounds")
         )
 
 
@@ -265,7 +269,7 @@ def run(arguments: RunArguments) -> None:
         now = datetime.now()
         datetime_str = now.strftime("%d-%m-%Y_%H-%M-%S")
 
-        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n, kernel_name, arguments.svgp_strategy if arguments.gp == "svgp" else None, arguments.deduplicate)
+        seed_ok = helpers.seed_check(seed,arguments.train_signal_variance, dataset, model, optimizer_name, n, kernel_name, arguments.svgp_strategy if arguments.gp == "svgp" else None, arguments.deduplicate, arguments.lengthscale_bounds)
         if not seed_ok:
             print(f"Seed {seed} was used already used for {str(dataset)} with {str(model)}")
             return
@@ -310,6 +314,7 @@ def run(arguments: RunArguments) -> None:
             "learningrate": lr,
             "shuffledData": shuffle,
             "deduplicate": arguments.deduplicate,
+            "lengthscale_bounds": arguments.lengthscale_bounds,
             "seed": seed,
             "evalData": {"MAE": ev_data[0], 
                          "NLL":ev_data[1], 
