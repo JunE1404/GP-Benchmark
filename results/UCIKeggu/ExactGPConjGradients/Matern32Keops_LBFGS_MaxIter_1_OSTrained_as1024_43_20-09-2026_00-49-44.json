@@ -1,0 +1,33 @@
+{
+  "dataset": "UCIKeggu",
+  "approximation_size": 1024,
+  "fulldata": false,
+  "modelType": "ExactGPConjGradients",
+  "inducing_point_method": null,
+  "kernel": "Matern32Keops",
+  "trained_output_scale": true,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "LBFGS_MaxIter_1",
+  "learningrate": 0,
+  "shuffledData": true,
+  "deduplicate": "first",
+  "lengthscale_bounds": "1e-5",
+  "seed": 43,
+  "evalData": {
+    "MAE": 0.02428510985473576,
+    "NLL": 91.74405416297515,
+    "PICP50": 0.7294179201126099,
+    "PICP90": 0.919769287109375,
+    "PICP95": 0.9459884762763977,
+    "RMSE": 0.04271617538027626,
+    "Lengthscale": 85.58100762668056,
+    "Output_scale": 4.481531024240715,
+    "Noise_variance": 0.00011378150104554167
+  },
+  "trainingTime": 3386.5841324329376,
+  "evalTime": -0.6825511455535889,
+  "device": "cuda",
+  "git_commit_hash": "96db7972614ab2c042939cff36eaea80a3282fa4",
+  "date": "20-09-2026_00-49-44"
+}

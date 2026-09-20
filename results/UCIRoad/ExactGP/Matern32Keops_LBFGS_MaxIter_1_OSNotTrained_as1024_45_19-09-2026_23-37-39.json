@@ -1,0 +1,33 @@
+{
+  "dataset": "UCIRoad",
+  "approximation_size": 1024,
+  "fulldata": false,
+  "modelType": "ExactGP",
+  "inducing_point_method": null,
+  "kernel": "Matern32Keops",
+  "trained_output_scale": false,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "LBFGS_MaxIter_1",
+  "learningrate": 0,
+  "shuffledData": true,
+  "deduplicate": "first",
+  "lengthscale_bounds": "1e-5",
+  "seed": 45,
+  "evalData": {
+    "MAE": 0.3394463798152202,
+    "NLL": 0.6214122737508125,
+    "PICP50": 0.5483811497688293,
+    "PICP90": 0.8717806935310364,
+    "PICP95": 0.9375689625740051,
+    "RMSE": 0.44708642565425266,
+    "Lengthscale": 1.9700905028064728,
+    "Output_scale": 1,
+    "Noise_variance": 0.4591855143804079
+  },
+  "trainingTime": 28.763136386871338,
+  "evalTime": -0.024794340133666992,
+  "device": "cuda",
+  "git_commit_hash": "30ec0287845bba41c7536c23de9b552d9913118c",
+  "date": "19-09-2026_23-37-39"
+}

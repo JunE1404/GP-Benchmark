@@ -1,0 +1,32 @@
+{
+  "dataset": "UCIParkinsonsTelemonitoring",
+  "approximation_size": 1024,
+  "fulldata": false,
+  "modelType": "CAGP",
+  "inducing_point_method": null,
+  "kernel": "RBFKeops",
+  "trained_output_scale": false,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "Adam",
+  "learningrate": 0.1,
+  "shuffledData": true,
+  "deduplicate": "first",
+  "seed": 42,
+  "evalData": {
+    "MAE": 4.140656471252441,
+    "NLL": 3.0918186127666427,
+    "PICP50": 0.5799319744110107,
+    "PICP90": 0.9506802558898926,
+    "PICP95": 0.9676870703697205,
+    "RMSE": 5.203444004058838,
+    "Lengthscale": 37.499290466308594,
+    "Output_scale": 1,
+    "Noise_variance": 0.36828747391700745
+  },
+  "trainingTime": 541.7062981128693,
+  "evalTime": -0.1467440128326416,
+  "device": "cuda",
+  "git_commit_hash": "453bf422f051479c972320cd70f421787c6a9054",
+  "date": "19-09-2026_16-25-22"
+}

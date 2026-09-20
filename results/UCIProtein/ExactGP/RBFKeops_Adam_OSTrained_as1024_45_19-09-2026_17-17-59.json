@@ -1,0 +1,32 @@
+{
+  "dataset": "UCIProtein",
+  "approximation_size": 1024,
+  "fulldata": false,
+  "modelType": "ExactGP",
+  "inducing_point_method": null,
+  "kernel": "RBFKeops",
+  "trained_output_scale": true,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "Adam",
+  "learningrate": 0.1,
+  "shuffledData": true,
+  "deduplicate": "first",
+  "seed": 45,
+  "evalData": {
+    "MAE": 3.6579921029705083,
+    "NLL": 2.944367272342458,
+    "PICP50": 0.5061391592025757,
+    "PICP90": 0.8897225856781006,
+    "PICP95": 0.9429286122322083,
+    "RMSE": 4.687830700541147,
+    "Lengthscale": 5.354963106229421,
+    "Output_scale": 0.8422999645982453,
+    "Noise_variance": 0.3766246179864932
+  },
+  "trainingTime": 10.705823421478271,
+  "evalTime": -0.01175832748413086,
+  "device": "cuda",
+  "git_commit_hash": "453bf422f051479c972320cd70f421787c6a9054",
+  "date": "19-09-2026_17-17-59"
+}

@@ -1,0 +1,33 @@
+{
+  "dataset": "UCIProtein",
+  "approximation_size": 1024,
+  "fulldata": false,
+  "modelType": "ExactGP",
+  "inducing_point_method": null,
+  "kernel": "Matern32Keops",
+  "trained_output_scale": false,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "LBFGS_MaxIter_1",
+  "learningrate": 0,
+  "shuffledData": true,
+  "deduplicate": "first",
+  "lengthscale_bounds": "1e-5",
+  "seed": 46,
+  "evalData": {
+    "MAE": 3.543215823523092,
+    "NLL": 2.94021046264423,
+    "PICP50": 0.5297862887382507,
+    "PICP90": 0.8722146153450012,
+    "PICP95": 0.9283765554428101,
+    "RMSE": 4.666355019989967,
+    "Lengthscale": 4.843728007180699,
+    "Output_scale": 1,
+    "Noise_variance": 0.2618434923907131
+  },
+  "trainingTime": 13.7739999294281,
+  "evalTime": -0.011168718338012695,
+  "device": "cuda",
+  "git_commit_hash": "30ec0287845bba41c7536c23de9b552d9913118c",
+  "date": "19-09-2026_23-37-06"
+}

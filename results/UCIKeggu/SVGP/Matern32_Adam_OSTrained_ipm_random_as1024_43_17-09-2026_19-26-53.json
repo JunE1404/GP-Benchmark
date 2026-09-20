@@ -1,0 +1,32 @@
+{
+  "dataset": "UCIKeggu",
+  "approximation_size": 1024,
+  "fulldata": false,
+  "modelType": "SVGP",
+  "inducing_point_method": "random",
+  "kernel": "Matern32",
+  "trained_output_scale": true,
+  "likelihood": "Gaussian",
+  "mean": "Constant Mean",
+  "optimizer": "Adam",
+  "learningrate": 0.1,
+  "shuffledData": true,
+  "deduplicate": "first",
+  "seed": 43,
+  "evalData": {
+    "MAE": 0.027700270706565444,
+    "NLL": -1.8372271080270797,
+    "PICP50": 0.6282118558883667,
+    "PICP90": 0.9171473383903503,
+    "PICP95": 0.9465128183364868,
+    "RMSE": 0.038670570741579556,
+    "Lengthscale": 335.2261943836057,
+    "Output_scale": 2.5794380077379726,
+    "Noise_variance": 0.18425981292577243
+  },
+  "trainingTime": 170.03024125099182,
+  "evalTime": -0.008535623550415039,
+  "device": "cuda",
+  "git_commit_hash": "f77ee5f70926556f25fd2fc5af53c1ef920dc0a6",
+  "date": "17-09-2026_19-26-53"
+}
