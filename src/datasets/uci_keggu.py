@@ -23,7 +23,6 @@ class UCIKeggu(RegressionDataset):
             features = data.iloc[:,f_indeces].to_numpy(dtype=float64, na_value=0)
             targets = data.iloc[:,[26]].to_numpy(dtype=float64,na_value=0)
         else:
-            print("local")
             features = f_local
             targets = t_local
         feature_types = [
