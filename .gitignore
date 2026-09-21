@@ -231,6 +231,5 @@ gp-bench
 
 *.png
 
-/dissertation
 /misc
 /src/eval_tools

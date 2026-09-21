@@ -1,0 +1,106 @@
+{\footnotesize
+\setlength{\tabcolsep}{5.5pt}
+\begin{table}[htbp]
+\centering
+\caption{Mean test-set metrics over 5 seeds for each configuration and dataset (Wine, Protein, Parkinsons). RMSE and NLL are means over seeds, PICP50/90/95 their empirical coverage; runtime in seconds. Best three values per dataset and metric are highlighted in gold, silver and bronze.}
+\label{tab:gp_results_matern_1}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llccccccccc@{}}
+\toprule
+\multirow{2}{*}{Dataset} & \multirow{2}{*}{$d$} & \multirow{2}{*}{GP Method} & \multirow{2}{*}{Optimizer} & \multirow{2}{*}{OS trained} & \multirow{2}{*}{RMSE} & \multirow{2}{*}{NLL} & \multicolumn{3}{c}{PICP} & \multirow{2}{*}{Time (s)}\\
+\cmidrule(lr){8-10}
+ & & & & & & & 50 & 90 & 95 & \\
+\midrule
+\multirow{14}{*}{Wine} & \multirow{14}{*}{11} & \multirow{4}{*}{ExactGP} & Adam & Yes & 0.720 & 1.086 & 0.520 & 0.894 & 0.935 & \cellcolor{gold}3.0 \\
+ &  &  & Adam & No & 0.718 & 1.084 & 0.512 & 0.895 & 0.935 & \cellcolor{silver}3.1 \\
+ &  &  & LBFGS & Yes & 0.718 & 1.086 & 0.517 & 0.894 & 0.935 & 8.3 \\
+ &  &  & LBFGS & No & 0.718 & 1.086 & 0.515 & 0.892 & 0.933 & \cellcolor{bronze}7.2 \\ \cdashline{3-11}
+ &  & \multirow{4}{*}{ExactGP-CG} & Adam & Yes & 0.719 & 1.086 & 0.523 & 0.895 & 0.937 & 22.0 \\
+ &  &  & Adam & No & 0.719 & 1.084 & 0.510 & 0.893 & 0.934 & 22.4 \\
+ &  &  & LBFGS & Yes & 0.718 & 1.086 & 0.520 & 0.894 & 0.936 & 87.2 \\
+ &  &  & LBFGS & No & 0.715 & 1.081 & 0.521 & 0.896 & 0.937 & 90.5 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (random init.)} & Adam & Yes & 0.698 & 1.059 & 0.533 & 0.900 & 0.941 & 46.3 \\
+ &  &  & Adam & No & \cellcolor{silver}0.694 & \cellcolor{silver}1.053 & 0.545 & 0.906 & 0.948 & 45.2 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (k-means init.)} & Adam & Yes & 0.697 & 1.058 & 0.537 & 0.898 & 0.944 & 47.8 \\
+ &  &  & Adam & No & \cellcolor{bronze}0.695 & \cellcolor{bronze}1.054 & 0.544 & 0.902 & 0.946 & 45.2 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{CAGP} & Adam & Yes & 0.695 & 1.054 & 0.543 & 0.903 & 0.947 & 636.7 \\
+ &  &  & Adam & No & \cellcolor{gold}0.691 & \cellcolor{gold}1.045 & 0.540 & 0.906 & 0.946 & 556.2 \\
+\midrule
+\multirow{14}{*}{Protein} & \multirow{14}{*}{9} & \multirow{4}{*}{ExactGP} & Adam & Yes & 4.633 & 2.910 & 0.530 & 0.888 & 0.938 & \cellcolor{gold}3.0 \\
+ &  &  & Adam & No & 4.636 & 2.910 & 0.526 & 0.887 & 0.937 & \cellcolor{silver}3.3 \\
+ &  &  & LBFGS & Yes & 4.632 & 2.910 & 0.529 & 0.889 & 0.938 & \cellcolor{bronze}6.5 \\
+ &  &  & LBFGS & No & 4.599 & 2.909 & 0.535 & 0.890 & 0.939 & 6.5 \\ \cdashline{3-11}
+ &  & \multirow{4}{*}{ExactGP-CG} & Adam & Yes & 4.627 & 2.908 & 0.531 & 0.889 & 0.938 & 39.3 \\
+ &  &  & Adam & No & 4.630 & 2.907 & 0.527 & 0.887 & 0.937 & 37.6 \\
+ &  &  & LBFGS & Yes & 4.581 & \cellcolor{bronze}2.905 & 0.541 & 0.896 & 0.942 & 126.6 \\
+ &  &  & LBFGS & No & 4.633 & 2.913 & 0.531 & 0.892 & 0.940 & 126.8 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (random init.)} & Adam & Yes & \cellcolor{bronze}4.536 & 2.933 & 0.531 & 0.914 & 0.957 & 342.2 \\
+ &  &  & Adam & No & 4.553 & 2.935 & 0.514 & 0.915 & 0.958 & 338.5 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (k-means init.)} & Adam & Yes & 4.557 & 2.936 & 0.524 & 0.911 & 0.956 & 361.9 \\
+ &  &  & Adam & No & 4.556 & 2.936 & 0.520 & 0.912 & 0.957 & 337.5 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{CAGP} & Adam & Yes & \cellcolor{gold}3.613 & \cellcolor{gold}2.711 & 0.632 & 0.924 & 0.958 & 665.7 \\
+ &  &  & Adam & No & \cellcolor{silver}3.748 & \cellcolor{silver}2.749 & 0.624 & 0.923 & 0.959 & 586.1 \\
+\midrule
+\multirow{14}{*}{Parkinsons} & \multirow{14}{*}{19} & \multirow{4}{*}{ExactGP} & Adam & Yes & 6.169 & 3.245 & 0.495 & 0.904 & 0.941 & \cellcolor{gold}3.1 \\
+ &  &  & Adam & No & 6.175 & 3.247 & 0.498 & 0.907 & 0.943 & \cellcolor{silver}3.3 \\
+ &  &  & LBFGS & Yes & \cellcolor{bronze}6.138 & \cellcolor{bronze}3.238 & 0.492 & 0.911 & 0.944 & \cellcolor{bronze}9.2 \\
+ &  &  & LBFGS & No & 6.582 & 3.334 & 0.503 & 0.894 & 0.935 & 9.6 \\ \cdashline{3-11}
+ &  & \multirow{4}{*}{ExactGP-CG} & Adam & Yes & 6.166 & 3.244 & 0.498 & 0.906 & 0.941 & 26.8 \\
+ &  &  & Adam & No & 6.177 & 3.246 & 0.496 & 0.907 & 0.944 & 32.5 \\
+ &  &  & LBFGS & Yes & 6.188 & 3.248 & 0.495 & 0.910 & 0.943 & 125.3 \\
+ &  &  & LBFGS & No & 6.423 & 3.286 & 0.503 & 0.906 & 0.944 & 146.2 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (random init.)} & Adam & Yes & 6.199 & 3.245 & 0.535 & 0.930 & 0.957 & 53.9 \\
+ &  &  & Adam & No & 6.236 & 3.253 & 0.546 & 0.926 & 0.953 & 52.9 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (k-means init.)} & Adam & Yes & 6.203 & 3.244 & 0.537 & 0.921 & 0.954 & 57.9 \\
+ &  &  & Adam & No & 6.237 & 3.252 & 0.536 & 0.926 & 0.953 & 52.9 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{CAGP} & Adam & Yes & \cellcolor{silver}5.893 & \cellcolor{gold}3.197 & 0.505 & 0.919 & 0.951 & 673.1 \\
+ &  &  & Adam & No & \cellcolor{gold}5.886 & \cellcolor{silver}3.198 & 0.512 & 0.927 & 0.955 & 588.8 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+\begin{table}[htbp]
+\centering
+\caption{Mean test-set metrics over 5 seeds for each configuration and dataset (Keggu, Road). RMSE and NLL are means over seeds, PICP50/90/95 their empirical coverage; runtime in seconds. Best three values per dataset and metric are highlighted in gold, silver and bronze.}
+\label{tab:gp_results_matern_2}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llccccccccc@{}}
+\toprule
+\multirow{2}{*}{Dataset} & \multirow{2}{*}{$d$} & \multirow{2}{*}{GP Method} & \multirow{2}{*}{Optimizer} & \multirow{2}{*}{OS trained} & \multirow{2}{*}{RMSE} & \multirow{2}{*}{NLL} & \multicolumn{3}{c}{PICP} & \multirow{2}{*}{Time (s)}\\
+\cmidrule(lr){8-10}
+ & & & & & & & 50 & 90 & 95 & \\
+\midrule
+\multirow{14}{*}{Keggu} & \multirow{14}{*}{24} & \multirow{4}{*}{ExactGP} & Adam & Yes & 0.045 & -2.169 & 0.677 & 0.894 & 0.923 & \cellcolor{gold}3.3 \\
+ &  &  & Adam & No & 0.049 & -2.116 & 0.670 & 0.886 & 0.919 & \cellcolor{silver}3.4 \\
+ &  &  & LBFGS & Yes & 0.045 & \cellcolor{gold}-2.249 & 0.675 & 0.884 & 0.912 & 11.2 \\
+ &  &  & LBFGS & No & 0.054 & -2.109 & 0.656 & 0.877 & 0.906 & \cellcolor{bronze}9.6 \\ \cdashline{3-11}
+ &  & \multirow{4}{*}{ExactGP-CG} & Adam & Yes & 0.046 & -2.085 & 0.715 & 0.916 & 0.940 & 482.9 \\
+ &  &  & Adam & No & 0.049 & -2.068 & 0.676 & 0.892 & 0.925 & 379.4 \\
+ &  &  & LBFGS & Yes & 0.047 & -2.035 & 0.739 & 0.924 & 0.947 & 2853.7 \\
+ &  &  & LBFGS & No & 0.050 & -2.067 & 0.667 & 0.891 & 0.921 & 2366.4 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (random init.)} & Adam & Yes & 0.037 & -1.886 & 0.712 & 0.930 & 0.957 & 151.4 \\
+ &  &  & Adam & No & 0.037 & -1.877 & 0.724 & 0.928 & 0.954 & 153.3 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (k-means init.)} & Adam & Yes & \cellcolor{bronze}0.036 & -1.889 & 0.731 & 0.929 & 0.958 & 154.2 \\
+ &  &  & Adam & No & 0.037 & -1.874 & 0.711 & 0.928 & 0.952 & 146.7 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{CAGP} & Adam & Yes & \cellcolor{gold}0.026 & \cellcolor{silver}-2.245 & 0.758 & 0.941 & 0.964 & 675.9 \\
+ &  &  & Adam & No & \cellcolor{silver}0.026 & \cellcolor{bronze}-2.234 & 0.753 & 0.938 & 0.962 & 589.7 \\
+\midrule
+\multirow{14}{*}{Road} & \multirow{14}{*}{2} & \multirow{4}{*}{ExactGP} & Adam & Yes & 10.114 & 3.701 & 0.634 & 0.902 & 0.934 & \cellcolor{silver}3.1 \\
+ &  &  & Adam & No & 10.121 & 3.705 & 0.643 & 0.902 & 0.934 & \cellcolor{gold}3.1 \\
+ &  &  & LBFGS & Yes & \cellcolor{bronze}5.308 & \cellcolor{silver}2.169 & 0.589 & 0.890 & 0.937 & 4.4 \\
+ &  &  & LBFGS & No & 5.316 & \cellcolor{bronze}2.171 & 0.592 & 0.892 & 0.938 & \cellcolor{bronze}4.1 \\ \cdashline{3-11}
+ &  & \multirow{4}{*}{ExactGP-CG} & Adam & Yes & 10.124 & 3.701 & 0.634 & 0.902 & 0.935 & 31.3 \\
+ &  &  & Adam & No & 10.127 & 3.706 & 0.641 & 0.901 & 0.933 & 41.3 \\
+ &  &  & LBFGS & Yes & \cellcolor{silver}4.752 & \cellcolor{gold}1.997 & 0.584 & 0.891 & 0.938 & 82.4 \\
+ &  &  & LBFGS & No & 5.319 & 2.172 & 0.594 & 0.894 & 0.940 & 72.6 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (random init.)} & Adam & Yes & 11.546 & 3.868 & 0.597 & 0.914 & 0.947 & 3040.5 \\
+ &  &  & Adam & No & 11.917 & 3.898 & 0.592 & 0.914 & 0.948 & 2990.8 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{SVGP (k-means init.)} & Adam & Yes & 11.501 & 3.862 & 0.591 & 0.909 & 0.943 & 3125.5 \\
+ &  &  & Adam & No & 11.936 & 3.900 & 0.585 & 0.910 & 0.945 & 3000.1 \\ \cdashline{3-11}
+ &  & \multirow{2}{*}{CAGP} & Adam & Yes & \cellcolor{gold}3.186 & 2.689 & 0.789 & 0.963 & 0.977 & 2061.4 \\
+ &  &  & Adam & No & 5.582 & 3.169 & 0.709 & 0.935 & 0.959 & 1857.6 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+}

@@ -1,0 +1,25 @@
+@startuml Datasets
+skinparam linetype line
+class RegressionDataset {
+  +features : Tensor
+  +targets : Tensor
+  +feature_types : list[str]
+  +get_data_splits(...) : DatasetData
+  +cuda() / cpu()
+}
+
+class SimpleSyntheticDataset
+class UCIParkinsonsTelemonitoring
+class UCIWineQuality
+class UCIProtein
+class UCIRoad
+class UCIKeggu
+
+SimpleSyntheticDataset       --|> RegressionDataset
+UCIParkinsonsTelemonitoring  --|> RegressionDataset
+UCIWineQuality               --|> RegressionDataset
+UCIProtein                   --|> RegressionDataset
+UCIRoad                      --|> RegressionDataset
+UCIKeggu                     --|> RegressionDataset
+
+@enduml
